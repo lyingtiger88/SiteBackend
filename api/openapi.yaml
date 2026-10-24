@@ -1,0 +1,99 @@
+openapi: 3.0.3
+info:
+  title: Zurvan License Server
+  version: 2.0.0-draft
+  description: Contract skeleton. No endpoints are deployed yet.
+servers:
+  - url: https://api.example.invalid
+    description: Placeholder; configure before deployment
+paths:
+  /v2/devices/enroll:
+    post:
+      summary: Start provisional device account registration with public-key challenge
+      responses:
+        '201': {description: Provisional account and challenge issued}
+        '429': {description: Rate limited}
+  /v2/accounts/complete-registration:
+    post:
+      summary: Select username and password after proving device key ownership
+      responses:
+        '200': {description: Account credentials set}
+        '409': {description: Username already exists}
+  /v2/auth/login:
+    post:
+      summary: Authenticate username and password
+      responses:
+        '200': {description: Authenticated session}
+        '401': {description: Invalid credentials}
+  /v2/auth/recover:
+    post:
+      summary: Begin verified recovery flow
+      responses:
+        '202': {description: Recovery challenge accepted if eligible}
+  /v2/products/zurvan/prices:
+    get:
+      summary: List eligible lifetime prices and currencies
+      responses:
+        '200': {description: Prices}
+  /v2/orders:
+    post:
+      security: [{bearerAuth: []}]
+      summary: Create immutable order snapshot
+      responses:
+        '201': {description: Pending order created}
+  /v2/payments/checkout:
+    post:
+      security: [{bearerAuth: []}]
+      summary: Initiate configured provider checkout
+      responses:
+        '200': {description: Provider checkout redirect details}
+  /v2/webhooks/iran:
+    post:
+      summary: Authenticated provider webhook (verify using provider-specific scheme)
+      responses:
+        '200': {description: Event processed or safely deduplicated}
+  /v2/webhooks/global:
+    post:
+      summary: Authenticated provider webhook (verify using provider-specific scheme)
+      responses:
+        '200': {description: Event processed or safely deduplicated}
+  /v2/licenses/me:
+    get:
+      security: [{bearerAuth: []}]
+      summary: List licenses owned by authenticated account
+      responses:
+        '200': {description: License summaries}
+  /v2/licenses/activate:
+    post:
+      security: [{bearerAuth: []}]
+      summary: Bind license to proven device key
+      responses:
+        '200': {description: Signed lifetime grant issued}
+        '409': {description: Already bound to another device}
+  /v2/licenses/check:
+    post:
+      security: [{bearerAuth: []}]
+      summary: Verify status for existing activation
+      responses:
+        '200': {description: Signed status or activation update}
+        '401': {description: Authentication required}
+  /v2/licenses/transfer-device:
+    post:
+      security: [{bearerAuth: []}]
+      summary: Rebind account/license after step-up verification and declared reason
+      responses:
+        '200': {description: Atomic transfer complete}
+        '403': {description: Additional verification required or failed}
+  /v2/admin/licenses:
+    get:
+      security: [{bearerAuth: []}]
+      summary: Privileged license management
+      responses:
+        '200': {description: Paginated management results}
+        '403': {description: Admin role required}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

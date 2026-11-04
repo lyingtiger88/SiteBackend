@@ -20,6 +20,7 @@ create table if not exists public.device_transfer_requests (
   expires_at timestamptz not null,
   created_at timestamptz not null default now(),
   decided_at timestamptz,
+  proof_verified_at timestamptz,
   approved_by text,
   unique (nonce)
 );
@@ -56,7 +57,8 @@ begin
 
   select * into req from public.device_transfer_requests
     where id = p_request_id for update;
-  if not found or req.state <> 'pending' or req.expires_at <= now() then
+  if not found or req.state <> 'pending' or req.expires_at <= now()
+     or req.proof_verified_at is null then
     raise exception 'invalid_transfer_request' using errcode = '22023';
   end if;
   select * into acct from public.accounts where id=req.account_id for update;

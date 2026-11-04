@@ -16,10 +16,12 @@ Deno.serve(async (req) => {
   let body: Record<string, unknown>;
   try {
     if (Number(req.headers.get("content-length") ?? 0) > 8192) return reply({ error: "payload_too_large" }, 413);
-    body = await req.json();
+    const raw = await req.text();
+    if (raw.length > 8192) return reply({ error: "payload_too_large" }, 413);
+    body = JSON.parse(raw);
   } catch { return reply({ error: "invalid_json" }, 400); }
   const { public_key, platform, captcha_token } = body;
-  if (typeof public_key !== "string" || public_key.length < 32 || public_key.length > 2048 ||
+  if (typeof public_key !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(public_key) ||
       !["android", "windows", "ios"].includes(String(platform)) ||
       typeof captcha_token !== "string" || captcha_token.length < 1 || captcha_token.length > 4096) {
     return reply({ error: "invalid_request" }, 400);

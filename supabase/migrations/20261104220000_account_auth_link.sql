@@ -2,6 +2,9 @@
 -- Run ONLY after the accounts/devices repair and registration test succeeded.
 begin;
 
+-- Credentials are managed by Supabase Auth; the old local password constraint
+-- would reject a non-null username with a null local password_hash.
+alter table public.accounts drop constraint if exists accounts_credentials_pair;
 alter table public.accounts
   add column if not exists auth_user_id uuid unique references auth.users(id);
 

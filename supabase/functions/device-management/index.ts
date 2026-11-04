@@ -68,6 +68,9 @@ Deno.serve(async request => {
     const fingerprint = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(publicKey))))
       .map(x=>x.toString(16).padStart(2,"0")).join("");
     const nonce=base64url(crypto.getRandomValues(new Uint8Array(32)));
+    // Expire stale requests before enforcing one-pending-request uniqueness.
+    await db.from("device_transfer_requests").update({state:"expired",decided_at:new Date().toISOString()})
+      .eq("account_id",account.id).eq("state","pending").lt("expires_at",new Date().toISOString());
     const {data,error}=await db.from("device_transfer_requests").insert({
       account_id:account.id,auth_user_id:user.id,new_public_key:publicKey,
       new_key_fingerprint:fingerprint,platform,reason,nonce,
@@ -98,6 +101,13 @@ Deno.serve(async request => {
       if(!await crypto.subtle.verify({name:"Ed25519"},key,sig,new TextEncoder().encode(payload)))
         return answer(origin,403,{error:"signature_rejected"});
     }catch{return answer(origin,403,{error:"signature_rejected"});}
+    const {data:marked,error:markError}=await db.from("device_transfer_requests")
+      .update({proof_verified_at:new Date().toISOString()}).eq("id",transfer.id)
+      .eq("account_id",account.id).eq("auth_user_id",user.id)
+      .eq("state","pending").is("proof_verified_at",null).gt("expires_at",new Date().toISOString())
+      .select("id").maybeSingle();
+    if(markError)return answer(origin,503,{error:"database_unavailable"});
+    if(!marked)return answer(origin,409,{error:"request_already_verified_or_expired"});
     // A signed request is still NOT approved. The support operator must inspect it
     // and perform independent step-up verification before SQL approval.
     return answer(origin,202,{request_id:transfer.id,state:"pending",requires_support_review:true});

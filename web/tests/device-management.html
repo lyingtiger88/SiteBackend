@@ -31,13 +31,41 @@ label{display:block;font-weight:bold}small{color:#5a6579}
 </select>
 <button id="request" disabled>ساخت درخواست انتقال و کلید جدید</button>
 <button id="prove" disabled>اثبات مالکیت کلید دستگاه جدید</button>
-<p><small>انتقال نهایی پس از بررسی و تأیید مجزای پشتیبانی انجام می‌شود. هیچ کدام از دکمه‌ها لایسنس را جابه‌جا نمی‌کنند. کلید آزمایشی دستگاه جدید فقط در حافظه همین صفحه قرار دارد.</small></p>
+<p><small>انتقال نهایی پس از بررسی و تأیید مجزای پشتیبانی انجام می‌شود. هیچ کدام از دکمه‌ها لایسنس را جابه‌جا نمی‌کنند. کلید آزمایشی غیرقابل‌استخراج دستگاه در IndexedDB همین مرورگر ذخیره می‌شود. پاک‌کردن داده‌های سایت یا تغییر مرورگر می‌تواند آن را از بین ببرد.</small></p>
 <pre id="output">ابتدا به نشست Google متصل شوید.</pre>
 </main>
 <script>
 const url="https://yztithydgdvydaktuxlw.supabase.co";
 const byId=id=>document.getElementById(id);
-let client=null,session=null,pair=null,challenge=null;
+let client=null,session=null,pair=null,challenge=null,ownerId=null;
+const DB_NAME='zurvan-transfer-keys-dev-v1';
+function openDb(){return new Promise((resolve,reject)=>{
+ const r=indexedDB.open(DB_NAME,1);
+ r.onupgradeneeded=()=>r.result.createObjectStore('pending',{keyPath:'owner'});
+ r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);
+});}
+async function dbTask(mode,fn){
+ const db=await openDb();
+ try{return await new Promise((resolve,reject)=>{
+  const tx=db.transaction('pending',mode),store=tx.objectStore('pending');
+  const q=fn(store);q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error);
+  tx.onerror=()=>reject(tx.error);
+ });}finally{db.close();}
+}
+const savePending=x=>dbTask('readwrite',s=>s.put(x));
+const loadPending=owner=>dbTask('readonly',s=>s.get(owner));
+const removePending=owner=>dbTask('readwrite',s=>s.delete(owner));
+async function restorePending(){
+ if(!ownerId)return;
+ const p=await loadPending(ownerId);
+ if(p?.privateKey && p.requestId){
+  pair={privateKey:p.privateKey};
+  challenge=p.nonce?{request_id:p.requestId,nonce:p.nonce}:null;
+  byId('prove').disabled=!challenge;
+  byId('request').disabled=true;
+  show('کلید دستگاه جایگزین و درخواست موجود بازیابی شدند. وضعیت را بررسی کنید.');
+ }
+}
 const b64=bytes=>btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const show=o=>byId("output").textContent=typeof o==="string"?o:JSON.stringify(o,null,2);
 async function api(body){
@@ -57,19 +85,43 @@ byId("connect").onclick=async()=>{
   const {data,error}=await client.auth.getSession();
   if(error||!data.session)throw Error("نشست Google پیدا نشد؛ ابتدا در صفحه ثبت دستگاه وارد Google شوید.");
   session=data.session;
+  const current=await client.auth.getUser();
+  if(current.error||!current.data.user)throw Error('نشست احراز هویت معتبر نیست');
+  ownerId=current.data.user.id;
   byId("status").disabled=false;byId("request").disabled=false;
   show("نشست احراز هویت پیدا شد. وضعیت دستگاه را بررسی کنید.");
+  await restorePending();
  }catch(e){show(String(e))}
 };
-byId("status").onclick=async()=>{try{show(await api({action:"status"}))}catch(e){show(String(e))}};
+byId("status").onclick=async()=>{try{
+ const r=await api({action:"status"});show(r);
+ if(r.http_status===200){
+  const pending=r.transfer_request;
+  const saved=ownerId?await loadPending(ownerId):null;
+  if(pending && saved?.requestId===pending.id && !saved?.nonce){
+    byId('prove').disabled=true;byId('request').disabled=true;
+  } else if(pending && saved?.requestId===pending.id && saved.nonce) {
+    byId('prove').disabled=false;byId('request').disabled=true;
+  } else if(pending) {
+    byId('prove').disabled=true;byId('request').disabled=true;
+    show({...r,note:'درخواست معلق روی سرور موجود است اما کلید آن در این مرورگر موجود نیست. برای پیگیری با پشتیبانی تماس بگیرید.'});
+  } else {byId('prove').disabled=true;byId('request').disabled=false;}
+ }
+}catch(e){show(String(e))}};
 byId("request").onclick=async()=>{
  try{
+  if(!ownerId)throw Error('ابتدا نشست را تأیید کنید');
   pair=await crypto.subtle.generateKey({name:"Ed25519"},false,["sign","verify"]);
   const raw=await crypto.subtle.exportKey("raw",pair.publicKey);
   const r=await api({action:"request_start",reason:byId("reason").value,
     platform:byId("platform").value,public_key:b64(raw)});
   show(r);
-  if(r.http_status===201){challenge=r;byId("prove").disabled=false;}
+  if(r.http_status===201){
+    challenge=r;
+    await savePending({owner:ownerId,privateKey:pair.privateKey,
+      requestId:r.request_id,nonce:r.nonce,createdAt:new Date().toISOString()});
+    byId("prove").disabled=false;byId("request").disabled=true;
+  }
   else pair=null;
  }catch(e){show(String(e))}
 };
@@ -82,7 +134,11 @@ byId("prove").onclick=async()=>{
   const signature=await crypto.subtle.sign({name:"Ed25519"},pair.privateKey,new TextEncoder().encode(payload));
   const r=await api({action:"request_finish",request_id:challenge.request_id,signature:b64(signature)});
   show(r);
-  if(r.http_status===202){byId("prove").disabled=true;challenge=null;}
+  if(r.http_status===202){
+    await savePending({owner:ownerId,privateKey:pair.privateKey,
+      requestId:challenge.request_id,nonce:null,createdAt:new Date().toISOString()});
+    byId("prove").disabled=true;challenge=null;
+  }
  }catch(e){show(String(e))}
 };
 </script></body></html>

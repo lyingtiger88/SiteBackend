@@ -2,7 +2,7 @@
 // Public enrollment must be protected against automated abuse.
 // Cloudflare Turnstile is required here; no challenge is issued if validation fails.
 import { createClient } from "npm:@supabase/supabase-js@2";
-const allowedOrigins = new Set(["http://localhost:8000", "http://127.0.0.1:8000"]);
+const allowedOrigins = new Set(["http://localhost:8085", "http://127.0.0.1:8085"]);
 const cors = (origin: string | null) => origin && allowedOrigins.has(origin)
   ? { "access-control-allow-origin": origin, "vary": "Origin",
       "access-control-allow-methods": "POST, OPTIONS",

@@ -131,7 +131,6 @@ window.addEventListener('load',async()=>{
     if(savedKey){
       // Supabase-js automatically exchanges the PKCE code from the OAuth callback.
       const client=makeOAuthClient();
-      await client.auth.initialize();
       await refreshGoogleSession();
     }
   }catch(e){

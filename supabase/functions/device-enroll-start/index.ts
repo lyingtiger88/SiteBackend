@@ -4,15 +4,15 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 const headers = { "content-type": "application/json", "cache-control": "no-store" };
 const reply = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers });
-const enc = new TextEncoder();
 const base64url = (bytes: Uint8Array) =>
   btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 Deno.serve(async (req) => {
   if (req.method !== "POST") return reply({ error: "method_not_allowed" }, 405);
   const secret = Deno.env.get("TURNSTILE_SECRET_KEY");
+  const allowedHosts = (Deno.env.get("TURNSTILE_ALLOWED_HOSTNAMES") ?? "").split(",").map(x => x.trim().toLowerCase()).filter(Boolean);
   const url = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!secret || !url || !serviceKey) return reply({ error: "service_not_configured" }, 503);
+  if (!secret || !allowedHosts.length || !url || !serviceKey) return reply({ error: "service_not_configured" }, 503);
   let body: Record<string, unknown>;
   try {
     if (Number(req.headers.get("content-length") ?? 0) > 8192) return reply({ error: "payload_too_large" }, 413);
@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     });
     if (!verify.ok) return reply({ error: "captcha_unavailable" }, 503);
     const challengeResult = await verify.json();
-    if (challengeResult.success !== true) return reply({ error: "captcha_failed" }, 403);
+    if (challengeResult.success !== true || typeof challengeResult.hostname !== "string" || !allowedHosts.includes(challengeResult.hostname.toLowerCase())) return reply({ error: "captcha_failed" }, 403);
     // A production deployment should also validate hostname/action from the verified CAPTCHA response
     // and enforce gateway / edge level per-IP throttling.
     const nonce = base64url(crypto.getRandomValues(new Uint8Array(32)));

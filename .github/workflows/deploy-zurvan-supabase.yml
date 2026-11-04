@@ -62,7 +62,7 @@ jobs:
       - name: Deploy selected function only
         shell: bash
         run: |
-          supabase functions deploy "$FUNCTION_NAME" --project-ref "$PROJECT_REF" --use-api
+          supabase functions deploy "$FUNCTION_NAME" --remote="$PROJECT_REF" --use-api --yes
 
       - name: Deployment summary
         shell: bash

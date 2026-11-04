@@ -26,6 +26,20 @@ small{color:#566179}#captcha{margin-top:18px;min-height:68px}
 <div id="captcha"></div>
 <button id="send" type="button" disabled>ایجاد کلید دستگاه و ارسال درخواست</button>
 <button id="finish" type="button" disabled>تأیید امضای دستگاه و ساخت حساب اولیه</button>
+<hr style="border:0;border-top:1px solid #ddd;margin:26px 0">
+<h2>تکمیل حساب اولیه (آزمایشی)</h2>
+<p><small>ابتدا دستگاه را در بالا ثبت کنید، سپس با ایمیل و رمز عبور حساب Supabase Auth بسازید.
+برای تأیید ایمیل، صفحه فعلی را نبندید یا بازخوانی نکنید.</small></p>
+<label for="publishable">Supabase Publishable/Anon Key (کلید عمومی، نه service_role)</label>
+<input id="publishable" type="text" autocomplete="off" placeholder="sb_publishable_... یا anon key">
+<label for="email">ایمیل بازیابی</label><input id="email" type="email" autocomplete="email">
+<label for="password">رمز عبور</label><input id="password" type="password" autocomplete="new-password">
+<label for="username">نام کاربری (۴ تا ۲۴ کاراکتر انگلیسی)</label>
+<input id="username" type="text" autocomplete="username" placeholder="zurvan_user">
+<button id="signup" type="button" disabled>ثبت ایمیل و رمز عبور در Supabase Auth</button>
+<button id="login" type="button" disabled>ورود پس از تأیید ایمیل</button>
+<button id="regstart" type="button" disabled>شروع اتصال حساب به دستگاه</button>
+<button id="regfinish" type="button" disabled>امضای چالش و تکمیل حساب</button>
 <label>پاسخ سرور</label><pre id="result">هنوز درخواستی ارسال نشده است.</pre>
 <small>کلید خصوصی آزمایشی فقط در حافظه همین صفحه تولید می‌شود و هنگام بستن آن از بین می‌رود. در نسخه نهایی اندروید، کلید باید در Android Keystore مدیریت شود.</small>
 </main>
@@ -34,6 +48,13 @@ const result=document.getElementById('result');
 const send=document.getElementById('send');
 const finish=document.getElementById('finish');
 let pending=null;
+let deviceKeyPair=null;
+let enrolledAccountId=null;
+let authToken=null;
+let registrationChallenge=null;
+const byId = (id) => document.getElementById(id);
+function setStatus(message) { result.textContent = message; }
+const signup=byId('signup'), login=byId('login'), regstart=byId('regstart'), regfinish=byId('regfinish');
 let token='';
 let widget;
 const projectUrl='https://yztithydgdvydaktuxlw.supabase.co';
@@ -88,12 +109,89 @@ finish.addEventListener('click',async()=>{
     });
     const data=await response.json();
     result.textContent=JSON.stringify({http_status:response.status,...data},null,2);
-    if(response.status===201)pending=null;
+    if(response.status===201) {
+      deviceKeyPair=current.pair;
+      enrolledAccountId=data.account_id;
+      signup.disabled=false;
+      login.disabled=false;
+      pending=null;
+    }
     else if(response.status>=500)finish.disabled=false;
   }catch(error){
     result.textContent='خطا: '+String(error);
     finish.disabled=false;
   }
+});
+
+async function authCall(endpoint, payload) {
+  const key=byId('publishable').value.trim();
+  if(!key) throw Error('ابتدا کلید عمومی Supabase را وارد کنید.');
+  const response=await fetch(projectUrl+'/auth/v1/'+endpoint,{
+    method:'POST',headers:{'content-type':'application/json','apikey':key},
+    body:JSON.stringify(payload)
+  });
+  const data=await response.json();
+  if(!response.ok) throw Error(data.msg || data.message || data.error_description || data.error || 'Auth request failed');
+  return data;
+}
+signup.addEventListener('click',async()=>{
+  if(!enrolledAccountId)return;
+  try{
+    const email=byId('email').value.trim(), password=byId('password').value;
+    if(!email || password.length<8)throw Error('ایمیل معتبر و رمز حداقل هشت کاراکتری لازم است.');
+    await authCall('signup',{email,password});
+    setStatus('درخواست ثبت‌نام ارسال شد. ایمیل را تأیید کنید، سپس بدون بستن این صفحه روی ورود کلیک کنید.');
+  }catch(e){setStatus(String(e));}
+});
+login.addEventListener('click',async()=>{
+  if(!enrolledAccountId)return;
+  try{
+    const data=await authCall('token?grant_type=password',{
+      email:byId('email').value.trim(),password:byId('password').value
+    });
+    if(!data.access_token)throw Error('نشست معتبر دریافت نشد.');
+    authToken=data.access_token;
+    regstart.disabled=false;
+    setStatus('ورود انجام شد. برای اتصال حساب به دستگاه، درخواست چالش جدید بدهید.');
+  }catch(e){setStatus(String(e));}
+});
+async function registrationApi(payload){
+  const key=byId('publishable').value.trim();
+  const response=await fetch(projectUrl+'/functions/v1/account-complete-registration',{
+    method:'POST',
+    headers:{'content-type':'application/json','apikey':key,'authorization':'Bearer '+authToken},
+    body:JSON.stringify(payload)
+  });
+  const data=await response.json();
+  return {status:response.status,data};
+}
+regstart.addEventListener('click',async()=>{
+  try{
+    if(!deviceKeyPair || !enrolledAccountId || !authToken)throw Error('حساب اولیه یا ورود معتبر موجود نیست.');
+    const r=await registrationApi({action:'start',account_id:enrolledAccountId});
+    if(r.status!==201)throw Error(JSON.stringify({http_status:r.status,...r.data}));
+    registrationChallenge=r.data;
+    regfinish.disabled=false;
+    setStatus('چالش اتصال حساب ایجاد شد. اکنون نام کاربری را بررسی کرده و امضا را تکمیل کنید.');
+  }catch(e){setStatus(String(e));}
+});
+regfinish.addEventListener('click',async()=>{
+  try{
+    const username=byId('username').value.trim();
+    if(!/^[a-z][a-z0-9_]{3,23}$/.test(username))throw Error('نام کاربری باید ۴ تا ۲۴ حرف انگلیسی کوچک، عدد یا زیرخط باشد و با حرف شروع شود.');
+    if(!registrationChallenge || !deviceKeyPair || !authToken)throw Error('چالش موجود نیست.');
+    const user=await fetch(projectUrl+'/auth/v1/user',{
+      headers:{'apikey':byId('publishable').value.trim(),'authorization':'Bearer '+authToken}
+    }).then(async r => { if(!r.ok)throw Error('نشست ورود معتبر نیست'); return r.json(); });
+    const message='zurvan-account-registration-v2:'+registrationChallenge.challenge_id+
+      ':'+registrationChallenge.nonce+':'+user.id+':'+username;
+    const signature=await crypto.subtle.sign({name:'Ed25519'},deviceKeyPair.privateKey,
+      new TextEncoder().encode(message));
+    const r=await registrationApi({action:'finish',account_id:enrolledAccountId,
+      challenge_id:registrationChallenge.challenge_id,username,signature:base64url(signature)});
+    setStatus(JSON.stringify({http_status:r.status,...r.data},null,2));
+    if(r.status===200){regfinish.disabled=true;regstart.disabled=true;registrationChallenge=null;}
+  }catch(e){setStatus(String(e));}
 });
 </script>
 </body></html>

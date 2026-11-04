@@ -14,8 +14,8 @@ button:disabled{background:#a5aab6;cursor:default}
 pre{white-space:pre-wrap;overflow-wrap:anywhere;text-align:left;direction:ltr;background:#edf2fa;padding:14px;border-radius:8px}
 small{color:#566179}#captcha{margin-top:18px;min-height:68px}
 </style>
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer>
-</script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body><main>
 <h1>آزمایش ثبت اولیه دستگاه زروان</h1>
@@ -39,6 +39,8 @@ small{color:#566179}#captcha{margin-top:18px;min-height:68px}
 <p id="account-state" role="status" style="padding:10px;background:#edf2fa;border-radius:8px">مرحله اول کامل نشده است: ابتدا ثبت دستگاه و تأیید امضا را انجام دهید.</p>
 <button id="signup" type="button" disabled title="ابتدا دستگاه را در بالای صفحه ثبت کنید">ثبت ایمیل و رمز عبور در Supabase Auth</button>
 <button id="login" type="button" disabled>ورود پس از تأیید ایمیل</button>
+<button id="google-login" type="button" disabled>ورود با Google (OAuth PKCE)</button>
+<p id="oauth-state" role="status"><small>ابتدا ثبت دستگاه را کامل کنید. سپس می‌توانید ورود Google را انجام دهید.</small></p>
 <button id="regstart" type="button" disabled>شروع اتصال حساب به دستگاه</button>
 <button id="regfinish" type="button" disabled>امضای چالش و تکمیل حساب</button>
 <label>پاسخ سرور</label><pre id="result">هنوز درخواستی ارسال نشده است.</pre>
@@ -56,6 +58,100 @@ let registrationChallenge=null;
 const byId = (id) => document.getElementById(id);
 function setStatus(message) { result.textContent = message; }
 const signup=byId('signup'), login=byId('login'), regstart=byId('regstart'), regfinish=byId('regfinish');
+const googleLogin=byId('google-login');
+const pubkeyStorageName='zurvan-test-publishable';
+let oauthClient=null;
+const indexedDBName='zurvan-device-oauth-test-v1';
+const storedDeviceKey='current-device';
+function openDeviceDB(){
+  return new Promise((resolve,reject)=>{
+    const r=indexedDB.open(indexedDBName,1);
+    r.onupgradeneeded=()=>r.result.createObjectStore('keys');
+    r.onsuccess=()=>resolve(r.result);
+    r.onerror=()=>reject(r.error);
+  });
+}
+async function deviceStore(mode, value){
+  const db=await openDeviceDB();
+  try{
+    return await new Promise((resolve,reject)=>{
+      const tx=db.transaction('keys',mode);
+      const store=tx.objectStore('keys');
+      const req=mode==='readwrite'?store.put(value,storedDeviceKey):store.get(storedDeviceKey);
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+      tx.onerror=()=>reject(tx.error);
+    });
+  }finally{db.close();}
+}
+async function restoreDevice(){
+  const saved=await deviceStore('readonly');
+  if(!saved || !saved.privateKey || !saved.accountId)return false;
+  // IndexedDB stores the non-extractable CryptoKey by structured clone, never as plaintext.
+  deviceKeyPair={privateKey:saved.privateKey};
+  enrolledAccountId=saved.accountId;
+  signup.disabled=false;login.disabled=false;googleLogin.disabled=false;
+  byId('account-state').textContent='دستگاه آزمایشی ثبت‌شده بازیابی شد. می‌توانید ورود Google را ادامه دهید.';
+  return true;
+}
+function publicKey(){
+  const key=byId('publishable').value.trim();
+  if(!key || !(key.startsWith('sb_publishable_') || key.startsWith('eyJ')))
+    throw Error('فقط کلید عمومی publishable یا anon Supabase را وارد کنید.');
+  return key;
+}
+function makeOAuthClient(){
+  const key=publicKey();
+  if(!window.supabase || !window.supabase.createClient)throw Error('کتابخانه Supabase بارگیری نشده است.');
+  if(!oauthClient){
+    oauthClient=window.supabase.createClient(projectUrl,key,{
+      auth:{flowType:'pkce',detectSessionInUrl:true,persistSession:true,autoRefreshToken:true}
+    });
+  }
+  return oauthClient;
+}
+async function refreshGoogleSession(){
+  const client=makeOAuthClient();
+  const {data,error}=await client.auth.getSession();
+  if(error)throw error;
+  if(data.session?.access_token){
+    authToken=data.session.access_token;
+    regstart.disabled=!enrolledAccountId;
+    byId('oauth-state').textContent='ورود Google انجام شد. اکنون می‌توانید اتصال حساب به دستگاه را شروع کنید.';
+    setStatus('ورود با Google موفق بود. چالش اتصال حساب را آغاز کنید.');
+    return true;
+  }
+  return false;
+}
+window.addEventListener('load',async()=>{
+  try{
+    await restoreDevice();
+    const savedKey=localStorage.getItem(pubkeyStorageName);
+    if(savedKey)byId('publishable').value=savedKey;
+    if(savedKey){
+      // Supabase-js automatically exchanges the PKCE code from the OAuth callback.
+      const client=makeOAuthClient();
+      await client.auth.initialize();
+      await refreshGoogleSession();
+    }
+  }catch(e){
+    byId('oauth-state').textContent='ورود Google یا بازیابی دستگاه: '+String(e);
+  }
+});
+googleLogin.addEventListener('click',async()=>{
+  if(!enrolledAccountId || !deviceKeyPair)return setStatus('ابتدا حساب اولیه دستگاه را ثبت کنید.');
+  try{
+    const key=publicKey();
+    localStorage.setItem(pubkeyStorageName,key); // public key only
+    await deviceStore('readwrite',{privateKey:deviceKeyPair.privateKey,accountId:enrolledAccountId});
+    const client=makeOAuthClient();
+    const {error}=await client.auth.signInWithOAuth({
+      provider:'google',
+      options:{redirectTo:'http://localhost:8085/device-enrollment.html'}
+    });
+    if(error)throw error;
+  }catch(e){setStatus('خطای ورود Google: '+String(e));}
+});
 let token='';
 let widget;
 const projectUrl='https://yztithydgdvydaktuxlw.supabase.co';
@@ -115,6 +211,8 @@ finish.addEventListener('click',async()=>{
       enrolledAccountId=data.account_id;
       signup.disabled=false;
       login.disabled=false;
+      googleLogin.disabled=false;
+      await deviceStore('readwrite',{privateKey:current.pair.privateKey,accountId:data.account_id});
       byId('account-state').textContent='دستگاه ثبت شد. اکنون کلید عمومی Supabase، ایمیل و رمز عبور را وارد کنید.';
       signup.title='';
       pending=null;

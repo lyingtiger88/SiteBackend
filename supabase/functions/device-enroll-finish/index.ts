@@ -53,6 +53,12 @@ Deno.serve(async req => {
     p_challenge_id:challenge_id,p_public_key:public_key
   });
   if (error) {
+    // Server-side diagnostic only: never return DB internals or credentials to clients.
+    console.error("complete_device_enrollment failed", {
+      code: error.code,
+      message: error.message,
+      hint: error.hint,
+    });
     if (error.message.includes("invalid_challenge") || error.message.includes("device_already_registered"))
       return json({error:"challenge_used_or_device_exists"},409,origin);
     return json({error:"enrollment_failed"},503,origin);

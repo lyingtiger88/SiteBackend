@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zurvan — آزمایش ثبت دستگاه</title>
+<style>
+body{font-family:Tahoma,Arial,sans-serif;background:#f3f5f9;color:#182335;margin:0;padding:28px}
+main{max-width:720px;margin:auto;background:#fff;padding:30px;border-radius:16px;box-shadow:0 8px 32px #10182812}
+h1{font-size:22px}label{display:block;margin:18px 0 7px;font-weight:600}
+input,button,pre{box-sizing:border-box;width:100%}
+input{font:inherit;padding:12px;border:1px solid #bac3d3;border-radius:8px;direction:ltr;text-align:left}
+button{background:#1953b8;color:white;border:0;border-radius:8px;padding:13px;margin-top:18px;cursor:pointer;font:inherit}
+button:disabled{background:#a5aab6;cursor:default}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;text-align:left;direction:ltr;background:#edf2fa;padding:14px;border-radius:8px}
+small{color:#566179}#captcha{margin-top:18px;min-height:68px}
+</style>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+</head>
+<body><main>
+<h1>آزمایش ثبت اولیه دستگاه زروان</h1>
+<p>این صفحه فقط برای تست محلی است. رمز یا Secret Key در این صفحه وارد نکنید.</p>
+<label for="site-key">Cloudflare Turnstile Site Key (عمومی)</label>
+<input id="site-key" type="text" placeholder="Site Key" autocomplete="off">
+<button id="load-captcha" type="button">نمایش Turnstile</button>
+<div id="captcha"></div>
+<button id="send" type="button" disabled>ایجاد کلید دستگاه و ارسال درخواست</button>
+<label>پاسخ سرور</label><pre id="result">هنوز درخواستی ارسال نشده است.</pre>
+<small>کلید خصوصی آزمایشی فقط در حافظه همین صفحه تولید می‌شود و هنگام بستن آن از بین می‌رود. در نسخه نهایی اندروید، کلید باید در Android Keystore مدیریت شود.</small>
+</main>
+<script>
+const result=document.getElementById('result');
+const send=document.getElementById('send');
+let token='';
+let widget;
+const projectUrl='https://yztithydgdvydaktuxlw.supabase.co';
+function base64url(raw){return btoa(String.fromCharCode(...new Uint8Array(raw))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+document.getElementById('load-captcha').addEventListener('click',()=>{
+  const key=document.getElementById('site-key').value.trim();
+  if(!key) return result.textContent='Site Key عمومی را وارد کنید.';
+  if(!window.turnstile) return result.textContent='اسکریپت Turnstile بارگیری نشده است. صفحه را بازخوانی کنید.';
+  if(widget!==undefined) window.turnstile.remove(widget);
+  token=''; send.disabled=true;
+  widget=window.turnstile.render('#captcha',{
+    sitekey:key,
+    callback:(value)=>{token=value;send.disabled=false;result.textContent='Turnstile آماده است. اکنون درخواست را بفرستید.'},
+    'expired-callback':()=>{token='';send.disabled=true;result.textContent='توکن منقضی شده؛ Turnstile را دوباره حل کنید.'},
+    'error-callback':()=>{token='';send.disabled=true;result.textContent='خطا در Turnstile؛ تنظیم hostname را بررسی کنید.'}
+  });
+});
+send.addEventListener('click',async()=>{
+  if(!token)return;
+  send.disabled=true;result.textContent='در حال ارسال...';
+  try{
+    const pair=await crypto.subtle.generateKey({name:'Ed25519'},false,['sign','verify']);
+    const pub=await crypto.subtle.exportKey('raw',pair.publicKey);
+    const response=await fetch(projectUrl+'/functions/v1/device-enroll-start',{
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({platform:'android',public_key:base64url(pub),captcha_token:token})
+    });
+    const data=await response.json();
+    result.textContent=JSON.stringify({http_status:response.status,...data},null,2);
+  }catch(error){
+    result.textContent='خطا: '+String(error)+ '\nاگر خطای CORS است، نسخه جدید تابع را در Supabase دوباره Deploy کنید.';
+  }finally{
+    token=''; if(widget!==undefined)window.turnstile.reset(widget);
+  }
+});
+</script>
+</body></html>

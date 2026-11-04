@@ -1,0 +1,17 @@
+# Zurvan development deployment configuration.
+# Functions authenticate either with Turnstile or by verifying the Supabase Auth bearer
+# using auth.getUser(). These public entrypoints cannot require legacy JWT verification.
+[functions.health-check]
+verify_jwt = false
+
+[functions.device-enroll-start]
+verify_jwt = false
+
+[functions.device-enroll-finish]
+verify_jwt = false
+
+[functions.account-complete-registration]
+verify_jwt = false
+
+[functions.device-management]
+verify_jwt = false

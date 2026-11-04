@@ -105,7 +105,12 @@ byId("status").onclick=async()=>{try{
   } else if(pending) {
     byId('prove').disabled=true;byId('request').disabled=true;
     show({...r,note:'درخواست معلق روی سرور موجود است اما کلید آن در این مرورگر موجود نیست. برای پیگیری با پشتیبانی تماس بگیرید.'});
-  } else {byId('prove').disabled=true;byId('request').disabled=false;}
+  } else {
+    // The server has no live pending request. Discard only stale local request state.
+    if(saved && ownerId)await removePending(ownerId);
+    pair=null;challenge=null;
+    byId('prove').disabled=true;byId('request').disabled=false;
+  }
  }
 }catch(e){show(String(e))}};
 byId("request").onclick=async()=>{

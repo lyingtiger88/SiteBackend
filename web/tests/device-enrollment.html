@@ -14,7 +14,29 @@ button:disabled{background:#a5aab6;cursor:default}
 pre{white-space:pre-wrap;overflow-wrap:anywhere;text-align:left;direction:ltr;background:#edf2fa;padding:14px;border-radius:8px}
 small{color:#566179}#captcha{margin-top:18px;min-height:68px}
 </style>
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer>
+finish.addEventListener('click',async()=>{
+  if(!pending)return;
+  const current=pending; finish.disabled=true;
+  result.textContent='در حال امضای چالش و ثبت حساب اولیه...';
+  try{
+    const message='zurvan-device-enrollment-v2:'+current.challenge_id+':'+current.nonce;
+    const signature=await crypto.subtle.sign({name:'Ed25519'},current.pair.privateKey,new TextEncoder().encode(message));
+    const response=await fetch(projectUrl+'/functions/v1/device-enroll-finish',{
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({challenge_id:current.challenge_id,public_key:current.public_key,signature:base64url(signature)})
+    });
+    const data=await response.json();
+    result.textContent=JSON.stringify({http_status:response.status,...data},null,2);
+    if(response.status===201)pending=null;
+    else if(response.status>=500)finish.disabled=false;
+  }catch(error){
+    result.textContent='خطا: '+String(error);
+    finish.disabled=false;
+  }
+});
+</script>
 </head>
 <body><main>
 <h1>آزمایش ثبت اولیه دستگاه زروان</h1>
@@ -24,12 +46,15 @@ small{color:#566179}#captcha{margin-top:18px;min-height:68px}
 <button id="load-captcha" type="button">نمایش Turnstile</button>
 <div id="captcha"></div>
 <button id="send" type="button" disabled>ایجاد کلید دستگاه و ارسال درخواست</button>
+<button id="finish" type="button" disabled>تأیید امضای دستگاه و ساخت حساب اولیه</button>
 <label>پاسخ سرور</label><pre id="result">هنوز درخواستی ارسال نشده است.</pre>
 <small>کلید خصوصی آزمایشی فقط در حافظه همین صفحه تولید می‌شود و هنگام بستن آن از بین می‌رود. در نسخه نهایی اندروید، کلید باید در Android Keystore مدیریت شود.</small>
 </main>
 <script>
 const result=document.getElementById('result');
 const send=document.getElementById('send');
+const finish=document.getElementById('finish');
+let pending=null;
 let token='';
 let widget;
 const projectUrl='https://yztithydgdvydaktuxlw.supabase.co';
@@ -39,7 +64,7 @@ document.getElementById('load-captcha').addEventListener('click',()=>{
   if(!key) return result.textContent='Site Key عمومی را وارد کنید.';
   if(!window.turnstile) return result.textContent='اسکریپت Turnstile بارگیری نشده است. صفحه را بازخوانی کنید.';
   if(widget!==undefined) window.turnstile.remove(widget);
-  token=''; send.disabled=true;
+  token=''; send.disabled=true; finish.disabled=true; pending=null;
   widget=window.turnstile.render('#captcha',{
     sitekey:key,
     callback:(value)=>{token=value;send.disabled=false;result.textContent='Turnstile آماده است. اکنون درخواست را بفرستید.'},
@@ -60,6 +85,10 @@ send.addEventListener('click',async()=>{
     });
     const data=await response.json();
     result.textContent=JSON.stringify({http_status:response.status,...data},null,2);
+    if(response.status===201 && data.challenge_id && data.nonce){
+      pending={pair,public_key:base64url(pub),challenge_id:data.challenge_id,nonce:data.nonce};
+      finish.disabled=false;
+    }
   }catch(error){
     result.textContent='خطا: '+String(error)+ '\nاگر خطای CORS است، نسخه جدید تابع را در Supabase دوباره Deploy کنید.';
   }finally{

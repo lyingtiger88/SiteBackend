@@ -36,7 +36,8 @@ small{color:#566179}#captcha{margin-top:18px;min-height:68px}
 <label for="password">رمز عبور</label><input id="password" type="password" autocomplete="new-password">
 <label for="username">نام کاربری (۴ تا ۲۴ کاراکتر انگلیسی)</label>
 <input id="username" type="text" autocomplete="username" placeholder="zurvan_user">
-<button id="signup" type="button" disabled>ثبت ایمیل و رمز عبور در Supabase Auth</button>
+<p id="account-state" role="status" style="padding:10px;background:#edf2fa;border-radius:8px">مرحله اول کامل نشده است: ابتدا ثبت دستگاه و تأیید امضا را انجام دهید.</p>
+<button id="signup" type="button" disabled title="ابتدا دستگاه را در بالای صفحه ثبت کنید">ثبت ایمیل و رمز عبور در Supabase Auth</button>
 <button id="login" type="button" disabled>ورود پس از تأیید ایمیل</button>
 <button id="regstart" type="button" disabled>شروع اتصال حساب به دستگاه</button>
 <button id="regfinish" type="button" disabled>امضای چالش و تکمیل حساب</button>
@@ -114,6 +115,8 @@ finish.addEventListener('click',async()=>{
       enrolledAccountId=data.account_id;
       signup.disabled=false;
       login.disabled=false;
+      byId('account-state').textContent='دستگاه ثبت شد. اکنون کلید عمومی Supabase، ایمیل و رمز عبور را وارد کنید.';
+      signup.title='';
       pending=null;
     }
     else if(response.status>=500)finish.disabled=false;

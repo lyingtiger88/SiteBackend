@@ -15,27 +15,6 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;text-align:left;direction:ltr;ba
 small{color:#566179}#captcha{margin-top:18px;min-height:68px}
 </style>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer>
-finish.addEventListener('click',async()=>{
-  if(!pending)return;
-  const current=pending; finish.disabled=true;
-  result.textContent='در حال امضای چالش و ثبت حساب اولیه...';
-  try{
-    const message='zurvan-device-enrollment-v2:'+current.challenge_id+':'+current.nonce;
-    const signature=await crypto.subtle.sign({name:'Ed25519'},current.pair.privateKey,new TextEncoder().encode(message));
-    const response=await fetch(projectUrl+'/functions/v1/device-enroll-finish',{
-      method:'POST',
-      headers:{'content-type':'application/json'},
-      body:JSON.stringify({challenge_id:current.challenge_id,public_key:current.public_key,signature:base64url(signature)})
-    });
-    const data=await response.json();
-    result.textContent=JSON.stringify({http_status:response.status,...data},null,2);
-    if(response.status===201)pending=null;
-    else if(response.status>=500)finish.disabled=false;
-  }catch(error){
-    result.textContent='خطا: '+String(error);
-    finish.disabled=false;
-  }
-});
 </script>
 </head>
 <body><main>
@@ -93,6 +72,27 @@ send.addEventListener('click',async()=>{
     result.textContent='خطا: '+String(error)+ '\nاگر خطای CORS است، نسخه جدید تابع را در Supabase دوباره Deploy کنید.';
   }finally{
     token=''; if(widget!==undefined)window.turnstile.reset(widget);
+  }
+});
+finish.addEventListener('click',async()=>{
+  if(!pending)return;
+  const current=pending; finish.disabled=true;
+  result.textContent='در حال امضای چالش و ثبت حساب اولیه...';
+  try{
+    const message='zurvan-device-enrollment-v2:'+current.challenge_id+':'+current.nonce;
+    const signature=await crypto.subtle.sign({name:'Ed25519'},current.pair.privateKey,new TextEncoder().encode(message));
+    const response=await fetch(projectUrl+'/functions/v1/device-enroll-finish',{
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({challenge_id:current.challenge_id,public_key:current.public_key,signature:base64url(signature)})
+    });
+    const data=await response.json();
+    result.textContent=JSON.stringify({http_status:response.status,...data},null,2);
+    if(response.status===201)pending=null;
+    else if(response.status>=500)finish.disabled=false;
+  }catch(error){
+    result.textContent='خطا: '+String(error);
+    finish.disabled=false;
   }
 });
 </script>

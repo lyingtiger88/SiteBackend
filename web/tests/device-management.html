@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>زروان | مدیریت دستگاه (آزمایشی)</title>
+<style>
+body{font:15px Tahoma,Arial;background:#f3f5f9;color:#182335;padding:30px}
+main{max-width:690px;margin:auto;background:white;padding:25px;border-radius:16px}
+input,select,button,pre{box-sizing:border-box;width:100%;margin:8px 0 16px;padding:11px;font:inherit;border-radius:8px}
+input,select{border:1px solid #c2cad7}button{border:0;background:#2359be;color:#fff;cursor:pointer}
+button:disabled{background:#969dab}pre{background:#ecf2fb;white-space:pre-wrap;overflow-wrap:anywhere;direction:ltr;text-align:left}
+label{display:block;font-weight:bold}small{color:#5a6579}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body><main>
+<h2>مدیریت دستگاه زروان</h2>
+<p>محیط آزمایشی: ارسال درخواست انتقال، بدون انتقال خودکار حساب یا لایسنس.</p>
+<label>کلید عمومی Supabase</label>
+<input id="pub" type="text" autocomplete="off" placeholder="sb_publishable_...">
+<button id="connect">اتصال به نشست Google موجود</button>
+<button id="status" disabled>مشاهده دستگاه فعال و درخواست‌ها</button>
+<hr>
+<label>علت انتقال</label><select id="reason">
+<option value="broken">خرابی دستگاه قبلی</option>
+<option value="sold">فروش دستگاه قبلی</option>
+<option value="lost">مفقودی دستگاه قبلی</option>
+<option value="upgrade">تعویض / ارتقا</option>
+</select>
+<label>سیستم‌عامل دستگاه جدید</label><select id="platform">
+<option value="android">Android</option><option value="ios">iOS</option><option value="windows">Windows</option>
+</select>
+<button id="request" disabled>ساخت درخواست انتقال و کلید جدید</button>
+<button id="prove" disabled>اثبات مالکیت کلید دستگاه جدید</button>
+<p><small>انتقال نهایی پس از بررسی و تأیید مجزای پشتیبانی انجام می‌شود. هیچ کدام از دکمه‌ها لایسنس را جابه‌جا نمی‌کنند. کلید آزمایشی دستگاه جدید فقط در حافظه همین صفحه قرار دارد.</small></p>
+<pre id="output">ابتدا به نشست Google متصل شوید.</pre>
+</main>
+<script>
+const url="https://yztithydgdvydaktuxlw.supabase.co";
+const byId=id=>document.getElementById(id);
+let client=null,session=null,pair=null,challenge=null;
+const b64=bytes=>btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const show=o=>byId("output").textContent=typeof o==="string"?o:JSON.stringify(o,null,2);
+async function api(body){
+ const response=await fetch(url+"/functions/v1/device-management",{
+  method:"POST",
+  headers:{"content-type":"application/json","authorization":"Bearer "+session.access_token,"apikey":byId("pub").value.trim()},
+  body:JSON.stringify(body)
+ });
+ const data=await response.json();
+ return {http_status:response.status,...data};
+}
+byId("connect").onclick=async()=>{
+ try{
+  const key=byId("pub").value.trim();
+  if(!key.startsWith("sb_publishable_")&&!key.startsWith("eyJ"))throw Error("کلید عمومی معتبر لازم است.");
+  client=window.supabase.createClient(url,key,{auth:{flowType:"pkce",detectSessionInUrl:true,persistSession:true}});
+  const {data,error}=await client.auth.getSession();
+  if(error||!data.session)throw Error("نشست Google پیدا نشد؛ ابتدا در صفحه ثبت دستگاه وارد Google شوید.");
+  session=data.session;
+  byId("status").disabled=false;byId("request").disabled=false;
+  show("نشست احراز هویت پیدا شد. وضعیت دستگاه را بررسی کنید.");
+ }catch(e){show(String(e))}
+};
+byId("status").onclick=async()=>{try{show(await api({action:"status"}))}catch(e){show(String(e))}};
+byId("request").onclick=async()=>{
+ try{
+  pair=await crypto.subtle.generateKey({name:"Ed25519"},false,["sign","verify"]);
+  const raw=await crypto.subtle.exportKey("raw",pair.publicKey);
+  const r=await api({action:"request_start",reason:byId("reason").value,
+    platform:byId("platform").value,public_key:b64(raw)});
+  show(r);
+  if(r.http_status===201){challenge=r;byId("prove").disabled=false;}
+  else pair=null;
+ }catch(e){show(String(e))}
+};
+byId("prove").onclick=async()=>{
+ try{
+  if(!pair||!challenge)throw Error("چالش موجود نیست");
+  const {data,error}=await client.auth.getUser();
+  if(error||!data.user)throw Error("ورود نامعتبر است");
+  const payload="zurvan-transfer-v2:"+challenge.request_id+":"+challenge.nonce+":"+data.user.id;
+  const signature=await crypto.subtle.sign({name:"Ed25519"},pair.privateKey,new TextEncoder().encode(payload));
+  const r=await api({action:"request_finish",request_id:challenge.request_id,signature:b64(signature)});
+  show(r);
+  if(r.http_status===202){byId("prove").disabled=true;challenge=null;}
+ }catch(e){show(String(e))}
+};
+</script></body></html>

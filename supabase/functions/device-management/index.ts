@@ -47,9 +47,15 @@ Deno.serve(async request => {
       .select("id,platform,device_label,created_at")
       .eq("account_id",account.id).is("revoked_at",null).maybeSingle();
     if(error)return answer(origin,503,{error:"database_unavailable"});
+    // Expired pending requests must not block the UI or a replacement request.
+    const nowIso=new Date().toISOString();
+    const {error:expireError}=await db.from("device_transfer_requests")
+      .update({state:"expired",decided_at:nowIso})
+      .eq("account_id",account.id).eq("state","pending").lte("expires_at",nowIso);
+    if(expireError)return answer(origin,503,{error:"database_unavailable"});
     const {data:pending,error:pe}=await db.from("device_transfer_requests")
-      .select("id,state,reason,created_at,expires_at")
-      .eq("account_id",account.id).eq("state","pending").maybeSingle();
+      .select("id,state,reason,created_at,expires_at,proof_verified_at")
+      .eq("account_id",account.id).eq("state","pending").gt("expires_at",nowIso).maybeSingle();
     if(pe)return answer(origin,503,{error:"database_unavailable"});
     return answer(origin,200,{account:{username:account.username,state:account.state},device,transfer_request:pending});
   }

@@ -108,7 +108,7 @@ Deno.serve(async request => {
         return answer(origin,403,{error:"signature_rejected"});
     }catch{return answer(origin,403,{error:"signature_rejected"});}
     const {data:marked,error:markError}=await db.from("device_transfer_requests")
-      .update({proof_verified_at:new Date().toISOString()}).eq("id",transfer.id)
+      .update({proof_verified_at:new Date().toISOString(),review_expires_at:new Date(Date.now()+7*24*60*60_000).toISOString(),expires_at:new Date(Date.now()+7*24*60*60_000).toISOString()}).eq("id",transfer.id)
       .eq("account_id",account.id).eq("auth_user_id",user.id)
       .eq("state","pending").is("proof_verified_at",null).gt("expires_at",new Date().toISOString())
       .select("id").maybeSingle();

@@ -58,14 +58,19 @@ jobs:
           fi
 
       - name: Set up Supabase CLI
-        uses: supabase/setup-cli@v1
+        # v3 resolves CLI releases through npm instead of relying on the
+        # GitHub latest-release lookup, which can fail with 403 rate limits.
+        uses: supabase/setup-cli@v3
         with:
-          version: latest
+          version: v2.stable
+
+      - name: Check Supabase CLI version
+        run: supabase --version
 
       - name: Deploy selected function only
         shell: bash
         run: |
-          supabase functions deploy "$FUNCTION_NAME" --remote="$PROJECT_REF" --use-api --yes
+          supabase functions deploy "$FUNCTION_NAME" --project-ref "$PROJECT_REF" --use-api
 
       - name: Deployment summary
         shell: bash

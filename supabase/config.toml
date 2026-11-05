@@ -15,3 +15,6 @@ verify_jwt = false
 
 [functions.device-management]
 verify_jwt = false
+
+[functions.admin-device-transfers]
+verify_jwt = false

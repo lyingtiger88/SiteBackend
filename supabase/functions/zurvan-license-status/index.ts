@@ -15,8 +15,9 @@ Deno.serve(async req=>{
   const user=authData?.user;
   if(authError||!user||!user.email_confirmed_at)return json(401,{error:"unauthorized"});
 
-  // The enrollment account is keyed by auth_user_id. The legacy license account
-  // is matched through the established username; never assume UUIDs are equal.
+  // The profile row and license-account row are deliberately separate.
+  // accounts.auth_user_id links the profile; zurvan_accounts.id is the Auth UUID
+  // referenced by zurvan_licenses.account_id. Never join these by username.
   const {data:account,error:accountError}=await db.from("accounts")
     .select("id,username,state").eq("auth_user_id",user.id).maybeSingle();
   if(accountError)return json(503,{error:"database_unavailable"});
@@ -40,7 +41,7 @@ Deno.serve(async req=>{
   if(!account.username)return json(409,{error:"account_mapping_missing"});
 
   const {data:licenseAccount,error:mappingError}=await db.from("zurvan_accounts")
-    .select("id,status").eq("username",account.username).maybeSingle();
+    .select("id,status").eq("id",user.id).maybeSingle();
   if(mappingError)return json(503,{error:"database_unavailable"});
   if(!licenseAccount||licenseAccount.status!=="active")
     return json(200,{account_state:"active",license_account_state:licenseAccount?.status??"not_found",licenses:[]});

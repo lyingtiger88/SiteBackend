@@ -9,6 +9,7 @@ on:
         required: true
         type: choice
         options:
+          - admin-device-transfers
           - device-management
           - account-complete-registration
           - device-enroll-start

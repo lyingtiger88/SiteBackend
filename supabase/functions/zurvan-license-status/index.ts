@@ -20,7 +20,23 @@ Deno.serve(async req=>{
   const {data:account,error:accountError}=await db.from("accounts")
     .select("id,username,state").eq("auth_user_id",user.id).maybeSingle();
   if(accountError)return json(503,{error:"database_unavailable"});
-  if(!account||account.state!=="active")return json(403,{error:"account_inactive"});
+  // Supabase Auth signup does not create a device-bound Zurvan account.
+  // A missing link is an onboarding state, never evidence that the user is blocked.
+  if(!account)return json(200,{
+    account_state:"registration_required",
+    license_account_state:"not_linked",
+    licenses:[],
+    registration_required:true,
+    checked_at:new Date().toISOString()
+  });
+  if(account.state==="provisional")return json(200,{
+    account_state:"provisional",
+    license_account_state:"not_linked",
+    licenses:[],
+    registration_required:true,
+    checked_at:new Date().toISOString()
+  });
+  if(account.state!=="active")return json(403,{error:"account_inactive"});
   if(!account.username)return json(409,{error:"account_mapping_missing"});
 
   const {data:licenseAccount,error:mappingError}=await db.from("zurvan_accounts")

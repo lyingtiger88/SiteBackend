@@ -1,7 +1,7 @@
-# Zarinpal lifetime checkout — deployment handoff
+# Zarinpal annual subscription checkout — deployment handoff
 
-## Scope
-This change adds a server-side Zarinpal v4 adapter for the Zurvan lifetime purchase. It does not create subscriptions. It does not expose the merchant ID to Android/Windows clients.
+## Product model
+Zurvan is sold as a **prepaid one-year subscription**, not a lifetime license. Each verified payment grants 12 months. A renewal extends the existing account/product entitlement by 12 months from the later of the current expiry or payment verification time. Premium access is enabled only while the server-side entitlement is unexpired.
 
 ## Flow
 1. Authenticated, email-confirmed client calls `zurvan-create-zarinpal-payment` with a server-issued `price_id`.
@@ -9,7 +9,7 @@ This change adds a server-side Zarinpal v4 adapter for the Zurvan lifetime purch
 3. For `IRT`, stored toman are multiplied by 10 and sent as rial. `IRR` is sent unchanged.
 4. Server creates pending order/payment and requests a Zarinpal authority.
 5. Browser opens Zarinpal StartPay. Zarinpal calls `zurvan-zarinpal-callback`.
-6. Callback verifies server-to-server and calls a SECURITY DEFINER RPC. That transaction marks payment/order paid, issues one lifetime license and writes an audit record.
+6. Callback verifies server-to-server and calls a SECURITY DEFINER RPC. That transaction marks payment/order paid, issues or renews the annual entitlement, sets expiry, and writes an audit record.
 7. Duplicate verified callbacks are idempotent.
 
 ## Required Supabase secrets
@@ -19,10 +19,10 @@ This change adds a server-side Zarinpal v4 adapter for the Zurvan lifetime purch
 Supabase already supplies `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
 
 ## Required admin configuration
-Insert/enable a `zurvan_prices` row for product `zurvan`, region `IR`, provider `zarinpal`, currency `IRT` (recommended canonical display denomination: toman), and the approved amount. No amount has been invented or activated in this change.
+Insert/enable a `zurvan_prices` row for product `zurvan`, region `IR`, provider `zarinpal`, currency `IRT` (canonical display denomination: toman), and the approved annual amount. No price has been invented or activated.
 
 ## Deploy
-Apply migration `20261105160000_zarinpal_lifetime_checkout.sql`, set secrets, deploy both functions, and configure callback URL in the Zarinpal merchant panel. Do not enable production until sandbox request, success, cancel, duplicate callback, amount mismatch, and network failure tests pass.
+Apply migrations `20261105160000_zarinpal_lifetime_checkout.sql` and `20261105161000_convert_zurvan_to_annual_subscription.sql`, set secrets, deploy both functions, and configure callback URL in the Zarinpal merchant panel. Do not enable production until sandbox request, success, cancel, duplicate callback, amount mismatch, renewal, expiry, and network failure tests pass.
 
 ## Important integration gap
-This adapter issues a database lifetime license record. It does not yet sign a client-verifiable license or bind it to the device key. The Android client also currently gates premium tabs using its legacy local activation code. Do not advertise paid premium access as live until signed-license issuance, one-device activation, and client entitlement refresh are integrated and tested.
+This adapter writes an annual entitlement record. Signed client-verifiable entitlement issuance, device binding and Android/Windows premium entitlement refresh are not yet connected. Do not advertise paid premium access as live until those are implemented and tested.

@@ -40,9 +40,9 @@ Deno.serve(async req=>{
   },{onConflict:"id",ignoreDuplicates:true});
   if(accountError)return json(503,{error:"account_unavailable"});
   const {data:existing,error:existingError}=await db.from("zurvan_licenses")
-    .select("id").eq("account_id",user.id).eq("product_id","zurvan").eq("status","active").maybeSingle();
+    .select("id,expires_at").eq("account_id",user.id).eq("product_id","zurvan").eq("status","active").gt("expires_at",new Date().toISOString()).maybeSingle();
   if(existingError)return json(503,{error:"license_lookup_failed"});
-  if(existing)return json(409,{error:"lifetime_license_already_owned"});
+  // A currently valid annual subscription may be renewed; its expiry is extended after verified payment.
 
   const {data:order,error:orderError}=await db.from("zurvan_orders").insert({
     account_id:user.id,product_id:"zurvan",price_id:price.id,
@@ -56,7 +56,7 @@ Deno.serve(async req=>{
 
   const requestBody={
     merchant_id:merchant,amount:rialAmount,callback_url:callback,
-    description:"خرید دائمی نرم‌افزار زروان",
+    description:"خرید اشتراک یک‌ساله نرم‌افزار زروان",
     metadata:{email:user.email??"",order_id:order.id}
   };
   let gateway: any;

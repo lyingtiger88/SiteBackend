@@ -52,3 +52,23 @@ join public.accounts a on a.id = r.account_id
 order by r.created_at desc limit 20;
 ```
 Never paste private keys, bearer tokens, or user recovery codes into a support ticket.
+
+
+## Admin review release (new migration)
+1. Review and apply `supabase/migrations/20261105090000_admin_device_transfer_review.sql` in Supabase SQL Editor. This migration adds the explicit admin allow-list and audit table, extends proof-verified requests to a seven-day review window, and adds a transaction that moves device binding and all active license activations atomically.
+2. Add the trusted operator to the allow-list only after independently verifying their identity. Obtain their Supabase Auth user UUID from Authentication > Users, then run:
+```sql
+insert into public.zurvan_admin_users(auth_user_id,role)
+values ('REPLACE-WITH-VERIFIED-AUTH-USER-UUID','superadmin');
+```
+Do not use the ordinary customer account unless it is intentionally designated as an administrator.
+3. Deploy `admin-device-transfers` via GitHub Actions. Select that function in the workflow. Deploy `device-management` again too, so successful proof extends the review deadline to seven days.
+4. Use `http://localhost:8085/admin-device-transfers.html` in the same browser profile with the allow-listed admin session and publishable key.
+5. Approve only after out-of-band owner verification. Approval revokes the previous device row, inserts the new device, revokes old active license activations, increments active license generations, inserts new activations, updates request state, and writes an admin audit row in one DB transaction.
+6. Rejection requires a reason and leaves the current device binding unchanged.
+
+## Critical release caveats
+- The initial migration and admin function assume the existing live schema has `public.accounts`, `public.devices`, `public.licenses`, and `public.activations`. Verify all four before running the migration. The repo also contains an alternate `zurvan_*` schema; the currently deployed enrollment/device API uses the unprefixed tables.
+- Admin allow-list bootstrap is a privileged manual action; never expose the service-role key in browser code.
+- Test first with a disposable account that has no paid license, then with a dedicated test license. Verify rollback behavior and audit rows.
+- Offline clients may continue using previously cached authorization until their next online check; immediate offline revocation is impossible.

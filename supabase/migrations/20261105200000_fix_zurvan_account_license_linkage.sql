@@ -11,6 +11,7 @@ declare
  ch public.authenticated_device_enrollment_challenges%rowtype;
  new_account uuid;
  new_device uuid;
+ license_device uuid;
  fingerprint text;
  user_email text;
 begin
@@ -59,12 +60,14 @@ begin
  insert into public.zurvan_devices(account_id,key_fingerprint,public_key,platform,label)
  values(p_auth_user_id,fingerprint,ch.public_key,ch.platform,'Android enrolled device')
  on conflict(key_fingerprint) do nothing;
+ select id into license_device from public.zurvan_devices
+   where key_fingerprint=fingerprint and account_id=p_auth_user_id;
 
  update public.authenticated_device_enrollment_challenges
  set consumed_at=now() where id=ch.id;
 
  return jsonb_build_object('account_id',new_account,'license_account_id',p_auth_user_id,
-   'device_id',new_device,'state','active','username',ch.username);
+   'device_id',new_device,'license_device_id',license_device,'state','active','username',ch.username);
 end
 $$;
 revoke all on function public.complete_authenticated_device_enrollment(uuid,uuid)

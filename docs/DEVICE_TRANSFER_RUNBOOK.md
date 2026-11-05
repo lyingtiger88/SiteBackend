@@ -72,3 +72,24 @@ Do not use the ordinary customer account unless it is intentionally designated a
 - Admin allow-list bootstrap is a privileged manual action; never expose the service-role key in browser code.
 - Test first with a disposable account that has no paid license, then with a dedicated test license. Verify rollback behavior and audit rows.
 - Offline clients may continue using previously cached authorization until their next online check; immediate offline revocation is impossible.
+
+
+## 42P01 hotfix / live schema mismatch (2026-11-05)
+Apply `supabase/migrations/20261105093000_fix_admin_transfer_schema.sql` AFTER the admin review migration and BEFORE any further approval tests. The earlier admin_review_device_transfer() body mistakenly references missing `public.licenses` and `public.activations` tables. The canonical paid-license tables are `public.zurvan_licenses`, `public.zurvan_activations`, and `public.zurvan_devices` while enrollment and transfer requests use `public.accounts` / `public.devices`.
+
+The hotfix atomically updates the enrollment device and, if active paid licenses exist for `req.auth_user_id`, updates their activations on a separate `zurvan_devices` row, increments license generations, and logs `zurvan_device_transfers`. It rejects any case where the active license binding cannot be matched by exact current device key fingerprint. This is deliberate; never bypass the mismatch check by replacing the missing tables with duplicate placeholders.
+
+To see whether this account has any canonical licenses BEFORE approving, run in SQL Editor:
+```sql
+select l.id,l.status,l.generation,l.account_id,
+       a.id as activation_id,a.revoked_at,d.key_fingerprint
+from public.zurvan_licenses l
+left join public.zurvan_activations a on a.license_id=l.id and a.revoked_at is null
+left join public.zurvan_devices d on d.id=a.device_id
+where l.account_id=(
+ select auth_user_id from public.accounts
+ where username='zurvan_admin01'
+)
+order by l.created_at;
+```
+If this returns zero rows, the account has no paid license in the canonical schema. An approved transfer changes the registered device only, not a paid license. A browser-only Ed25519 key must NOT be treated as a hardware-bound Android device key. Test approvals only with disposable accounts and confirm audit output and rollback behavior. No automatic deployment of SQL migrations occurs in the existing GitHub workflow.

@@ -1,8 +1,11 @@
 -- Convert the proposed Zurvan purchase model to a prepaid annual subscription.
--- One successful payment grants 12 months; renewal extends from max(now(), current expiry).
+-- Existing rows, if any, are converted to one-year grants from their creation date.
 begin;
 alter table public.zurvan_licenses
   add column if not exists expires_at timestamptz;
+update public.zurvan_licenses
+  set type='annual', expires_at=coalesce(expires_at,created_at + interval '1 year')
+  where type <> 'annual' or expires_at is null;
 alter table public.zurvan_licenses
   drop constraint if exists zurvan_licenses_type_check;
 alter table public.zurvan_licenses

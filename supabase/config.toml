@@ -21,3 +21,6 @@ verify_jwt = false
 
 [functions.zurvan-license-status]
 verify_jwt = false
+
+[functions.authenticated-device-enrollment]
+verify_jwt = false

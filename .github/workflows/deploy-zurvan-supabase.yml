@@ -15,6 +15,7 @@ on:
           - device-enroll-start
           - device-enroll-finish
           - health-check
+          - zurvan-license-status
 
 permissions:
   contents: read

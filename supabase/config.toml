@@ -18,3 +18,6 @@ verify_jwt = false
 
 [functions.admin-device-transfers]
 verify_jwt = false
+
+[functions.zurvan-license-status]
+verify_jwt = false

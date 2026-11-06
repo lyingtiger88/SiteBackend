@@ -59,14 +59,14 @@ as $$
 declare
   v_attempts integer;
 begin
-  insert into public.zurvan_desk_auth_limits(key_hash, window_started_at, attempts)
+  insert into public.zurvan_desk_auth_limits as current_limit(key_hash, window_started_at, attempts)
   values (p_key_hash, now(), 1)
   on conflict (key_hash) do update
     set attempts = case
-          when public.zurvan_desk_auth_limits.window_started_at
+          when current_limit.window_started_at
                < now() - make_interval(secs => p_window_seconds)
           then 1
-          else public.zurvan_desk_auth_limits.attempts + 1
+          else current_limit.attempts + 1
         end,
         window_started_at = case
           when public.zurvan_desk_auth_limits.window_started_at

@@ -37,7 +37,13 @@ Deno.serve(async (req) => {
     else if (!isCreator) query = query.eq("account_id", user.id);
     const { data, error } = await query.order("occasion_type");
     if (error) return json(503, { error: "database_unavailable" });
-    return json(200, { schedules: data ?? [] });
+    // A verified Creator may select a recipient from the account directory.
+    // Ordinary users receive neither the directory nor other users' schedules.
+    if (!isCreator) return json(200, { is_creator: false, account_id: user.id, schedules: data ?? [] });
+    const { data: accounts, error: directoryError } = await db.from("zurvan_accounts")
+      .select("id,username,status").eq("status", "active").order("username").limit(200);
+    if (directoryError) return json(503, { error: "database_unavailable" });
+    return json(200, { is_creator: true, account_id: user.id, accounts: accounts ?? [], schedules: data ?? [] });
   }
 
   if (!isCreator) return json(403, { error: "creator_only" });

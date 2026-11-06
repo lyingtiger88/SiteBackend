@@ -35,7 +35,7 @@ Deno.serve(async req=>{
  if(action==="start"){
    const username=data.username,publicKey=data.public_key,platform=data.platform;
    if(typeof username!=="string"||!USERNAME.test(username)||typeof publicKey!=="string"||
-      !B64.test(publicKey)||platform!=="android")return answer(400,{error:"invalid_request"});
+      !B64.test(publicKey)||!["android","ios","windows"].includes(String(platform)))return answer(400,{error:"invalid_request"});
    try{if(decode(publicKey).length!==32)return answer(400,{error:"invalid_key"});}
    catch{return answer(400,{error:"invalid_key"});}
    const {data:existing,error:ae}=await db.from("accounts").select("id,state")

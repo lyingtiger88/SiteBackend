@@ -6,7 +6,7 @@ create table if not exists public.zurvan_referral_settings (
   id boolean primary key default true check(id),
   successful_invites_for_free_year integer not null default 5 check(successful_invites_for_free_year>0),
   points_per_successful_invite integer not null default 100 check(points_per_successful_invite>=0),
-  points_for_free_year integer not null default 1000 check(points_for_free_year>0),
+  points_for_free_year integer not null default 500 check(points_for_free_year>0),
   enabled boolean not null default true,
   updated_at timestamptz not null default now()
 );
@@ -154,8 +154,12 @@ begin
 
  update public.zurvan_referrals set status='rewarded',rewarded_at=now() where id=ref.id;
 
- if new_count>=settings.successful_invites_for_free_year then
-   -- Award one year per threshold crossed; preserve lifetime and Super entitlements.
+ if new_count>=settings.successful_invites_for_free_year
+    and not exists(select 1 from public.zurvan_special_profiles
+      where account_id=ref.referrer_account_id and revoked_at is null)
+    and not exists(select 1 from public.zurvan_licenses
+      where account_id=ref.referrer_account_id and product_id='zurvan' and type='lifetime') then
+   -- Award one year per threshold crossed; never downgrade lifetime or Super.
    update public.zurvan_loyalty_accounts
    set successful_invites=successful_invites-settings.successful_invites_for_free_year,
        points_balance=points_balance-settings.points_for_free_year,updated_at=now()

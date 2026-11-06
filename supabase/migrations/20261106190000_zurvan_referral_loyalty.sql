@@ -4,9 +4,9 @@ begin;
 
 create table if not exists public.zurvan_referral_settings (
   id boolean primary key default true check(id),
-  successful_invites_for_free_year integer not null default 5 check(successful_invites_for_free_year>0),
+  successful_invites_for_free_year integer not null default 15 check(successful_invites_for_free_year>0),
   points_per_successful_invite integer not null default 100 check(points_per_successful_invite>=0),
-  points_for_free_year integer not null default 500 check(points_for_free_year>0),
+  points_for_free_year integer not null default 1500 check(points_for_free_year>0),
   enabled boolean not null default true,
   updated_at timestamptz not null default now()
 );

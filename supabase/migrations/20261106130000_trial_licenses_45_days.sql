@@ -85,4 +85,38 @@ revoke all on function public.admin_issue_trial_license(uuid,uuid)
 grant execute on function public.admin_issue_trial_license(uuid,uuid)
   to service_role;
 
+-- Automatically grant the 45-day trial when authenticated device enrollment
+-- creates or activates the license identity. Existing paid/lifetime licenses
+-- are never overwritten, and the account/product uniqueness prevents duplicates.
+create or replace function public.issue_trial_on_account_activation()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $
+begin
+  if new.status='active' and (tg_op='INSERT' or old.status is distinct from 'active') then
+    if not exists (
+      select 1 from public.zurvan_licenses
+      where account_id=new.id and product_id='zurvan'
+    ) then
+      insert into public.zurvan_licenses
+        (account_id,product_id,type,status,generation,expires_at)
+      values
+        (new.id,'zurvan','trial','active',1,now()+interval '45 days')
+      on conflict (account_id,product_id) do nothing;
+    end if;
+  end if;
+  return new;
+end
+$;
+
+drop trigger if exists zurvan_auto_trial_on_activation on public.zurvan_accounts;
+create trigger zurvan_auto_trial_on_activation
+after insert or update of status on public.zurvan_accounts
+for each row execute function public.issue_trial_on_account_activation();
+
+revoke all on function public.issue_trial_on_account_activation()
+  from public,anon,authenticated;
+
 commit;

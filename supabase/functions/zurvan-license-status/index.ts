@@ -51,6 +51,11 @@ Deno.serve(async req=>{
     .eq("account_id",licenseAccount.id).order("created_at",{ascending:false}).limit(50);
   if(licenseError)return json(503,{error:"database_unavailable"});
 
+  const {data:specialProfile,error:specialError}=await db.from("zurvan_special_profiles")
+    .select("tier,display_name,theme_key,granted_at")
+    .eq("account_id",user.id).is("revoked_at",null).maybeSingle();
+  if(specialError)return json(503,{error:"database_unavailable"});
+
   const licenseIds=(licenses??[]).map(x=>x.id);
   let activations:unknown[]=[];
   if(licenseIds.length){
@@ -61,5 +66,7 @@ Deno.serve(async req=>{
     activations=data??[];
   }
   return json(200,{account_state:"active",license_account_state:"active",licenses,activations,
+    special_profile:specialProfile??null,
+    entitlements:specialProfile?{premium:true,perpetual:true,can_create_events:true}:null,
     checked_at:new Date().toISOString()});
 });

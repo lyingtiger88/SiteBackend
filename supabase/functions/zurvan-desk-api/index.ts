@@ -136,15 +136,7 @@ async function consumeAuthRateLimit(request: Request): Promise<boolean> {
 Deno.serve(async (request: Request) => {
   if (!db) return fail(503, "service_not_configured");
   if (request.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        "access-control-allow-origin": "*",
-        "access-control-allow-headers": "authorization, apikey, content-type, x-zurvan-encrypted-name",
-        "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
-        "access-control-max-age": "86400",
-      },
-    });
+    return new Response(null, { status: 204, headers: { "cache-control": "no-store" } });
   }
 
   const url = new URL(request.url);
@@ -290,7 +282,7 @@ Deno.serve(async (request: Request) => {
         return fail(400, "Encrypted file name metadata is required.");
       }
       const declared = Number(request.headers.get("content-length") ?? "0");
-      if (declared <= 0 || declared > MAX_FILE_BYTES) return fail(413, "حداکثر حجم هر فایل در پلن فعلی ۵۰ مگابایت است.");
+      if (declared > MAX_FILE_BYTES) return fail(413, "حداکثر حجم هر فایل در پلن فعلی ۵۰ مگابایت است.");
       const payload = new Uint8Array(await request.arrayBuffer());
       if (payload.length <= 0 || payload.length > MAX_FILE_BYTES) return fail(413, "حداکثر حجم هر فایل در پلن فعلی ۵۰ مگابایت است.");
       const fileId = "file_" + crypto.randomUUID().replaceAll("-", "");
@@ -308,7 +300,7 @@ Deno.serve(async (request: Request) => {
         id: fileId,
         account_id: auth.account.id,
         encrypted_name: encryptedName,
-        size: declared,
+        size: payload.length,
         content_type: ENCRYPTED_MIME,
         storage_path: storagePath,
       }).select("id,encrypted_name,size,modified_at,content_type").single();
@@ -358,14 +350,14 @@ Deno.serve(async (request: Request) => {
         return reply(200, fileResponse(updated));
       }
       if (method === "DELETE" && !path.endsWith("/metadata")) {
-        const { error: deleteError } = await db.from("zurvan_desk_files")
-          .delete().eq("id", fileId).eq("account_id", auth.account.id);
-        if (deleteError) return fail(503, "حذف فایل انجام نشد.");
         const { error: storageError } = await db.storage.from(BUCKET).remove([file.storage_path]);
         if (storageError) {
-          console.error("Desk blob cleanup failed:", storageError.message);
-          return fail(503, "اطلاعات فایل حذف شد اما پاکسازی فضای ذخیره‌سازی کامل نشد.");
+          console.error("Desk blob deletion failed:", storageError.message);
+          return fail(503, "حذف محتوای فایل انجام نشد؛ اطلاعات فایل حفظ شد تا دوباره تلاش کنید.");
         }
+        const { error: deleteError } = await db.from("zurvan_desk_files")
+          .delete().eq("id", fileId).eq("account_id", auth.account.id);
+        if (deleteError) return fail(503, "محتوای فایل حذف شد اما پاکسازی مشخصات فایل کامل نشد.");
         return new Response(null, { status: 204, headers: { "cache-control": "no-store" } });
       }
     }

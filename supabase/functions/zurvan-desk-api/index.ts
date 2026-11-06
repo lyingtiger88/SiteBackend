@@ -149,6 +149,18 @@ Deno.serve(async (request: Request) => {
 
   try {
     if (method === "GET" && path === "/health") {
+      const { error: schemaError } = await db.from("zurvan_desk_accounts")
+        .select("id")
+        .limit(1);
+      if (schemaError) {
+        console.error("Desk schema readiness check failed:", schemaError.code);
+        return fail(503, "desk_database_migration_required");
+      }
+      const { data: bucket, error: bucketError } = await db.storage.getBucket(BUCKET);
+      if (bucketError || !bucket || bucket.public) {
+        console.error("Desk private bucket readiness check failed:", bucketError?.message ?? "bucket_not_private");
+        return fail(503, "desk_private_storage_bucket_not_ready");
+      }
       return reply(200, { service: "zurvan-desk-api", status: "ok", apiVersion: "v1" });
     }
 

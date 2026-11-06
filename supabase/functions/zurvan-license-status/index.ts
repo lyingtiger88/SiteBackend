@@ -51,6 +51,24 @@ Deno.serve(async req=>{
     .eq("account_id",licenseAccount.id).order("created_at",{ascending:false}).limit(50);
   if(licenseError)return json(503,{error:"database_unavailable"});
 
+  const {data:hardwareLink,error:hardwareLinkError}=await db.from("zurvan_hardware_account_links")
+    .select("account_number,hardware_id").eq("account_id",user.id).maybeSingle();
+  if(hardwareLinkError)return json(503,{error:"database_unavailable"});
+  let hardwareQuota={hardware_account_number:null,free_account_limit:null,
+    free_accounts_created:null,free_accounts_remaining:null};
+  if(hardwareLink){
+    const {data:hardware,error:hardwareError}=await db.from("zurvan_hardware_registry")
+      .select("free_account_limit,free_accounts_created")
+      .eq("id",hardwareLink.hardware_id).maybeSingle();
+    if(hardwareError)return json(503,{error:"database_unavailable"});
+    if(hardware)hardwareQuota={
+      hardware_account_number:hardwareLink.account_number,
+      free_account_limit:hardware.free_account_limit,
+      free_accounts_created:hardware.free_accounts_created,
+      free_accounts_remaining:Math.max(0,hardware.free_account_limit-hardware.free_accounts_created)
+    };
+  }
+
   const licenseIds=(licenses??[]).map(x=>x.id);
   let activations:unknown[]=[];
   if(licenseIds.length){
@@ -67,6 +85,6 @@ Deno.serve(async req=>{
       new Date(license.expires_at).getTime()<=now;
     return {...license,status:expired?"expired":license.status};
   });
-  return json(200,{account_state:"active",license_account_state:"active",licenses:effectiveLicenses,activations,
+  return json(200,{account_state:"active",license_account_state:"active",licenses:effectiveLicenses,activations,...hardwareQuota,
     checked_at:new Date().toISOString()});
 });

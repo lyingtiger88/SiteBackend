@@ -2,7 +2,7 @@ import {createClient} from "npm:@supabase/supabase-js@2";
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const USERNAME=/^[a-z][a-z0-9_]{3,23}$/;
-const B64=/^[A-Za-z0-9_-]{43}$/;
+const B64=/^[A-Za-z0-9_-]{43}$/;\nconst HW=/^[0-9a-f]{64}$/;
 const answer=(status:number,body:unknown)=>new Response(JSON.stringify(body),{
  status,headers:{"content-type":"application/json","cache-control":"no-store"}
 });
@@ -33,9 +33,9 @@ Deno.serve(async req=>{
  }catch{return answer(400,{error:"invalid_json"});}
  const action=data.action;
  if(action==="start"){
-   const username=data.username,publicKey=data.public_key,platform=data.platform;
+   const username=data.username,publicKey=data.public_key,platform=data.platform,hardwareFingerprint=data.hardware_fingerprint;
    if(typeof username!=="string"||!USERNAME.test(username)||typeof publicKey!=="string"||
-      !B64.test(publicKey)||platform!=="android")return answer(400,{error:"invalid_request"});
+      !B64.test(publicKey)||platform!=="android"||typeof hardwareFingerprint!=="string"||!HW.test(hardwareFingerprint))return answer(400,{error:"invalid_request"});
    try{if(decode(publicKey).length!==32)return answer(400,{error:"invalid_key"});}
    catch{return answer(400,{error:"invalid_key"});}
    const {data:existing,error:ae}=await db.from("accounts").select("id,state")
@@ -49,7 +49,7 @@ Deno.serve(async req=>{
    if((count??0)>=5)return answer(429,{error:"try_again_later"});
    const nonce=encode(crypto.getRandomValues(new Uint8Array(32)));
    const {data:ch,error:ie}=await db.from("authenticated_device_enrollment_challenges")
-     .insert({auth_user_id:user.id,username,public_key:publicKey,platform,nonce,
+     .insert({auth_user_id:user.id,username,public_key:publicKey,platform,hardware_fingerprint:hardwareFingerprint,nonce,
        expires_at:new Date(Date.now()+5*60_000).toISOString()})
      .select("id,nonce,expires_at").single();
    if(ie)return answer(503,{error:"storage_unavailable"});
@@ -76,7 +76,7 @@ Deno.serve(async req=>{
      p_challenge_id:id,p_auth_user_id:user.id
    });
    if(writeError){
-     if(writeError.code==="23505")return answer(409,{error:"account_or_key_already_registered"});
+     if(writeError.code==="23505")return answer(409,{error:"account_or_key_already_registered"});\n     if(writeError.message?.includes("free_account_device_locked"))return answer(403,{error:"free_account_device_locked"});
      if(writeError.code==="22023"||writeError.code==="42501")return answer(403,{error:"registration_rejected"});
      console.error("complete authenticated enrollment",writeError.code);
      return answer(503,{error:"registration_unavailable"});

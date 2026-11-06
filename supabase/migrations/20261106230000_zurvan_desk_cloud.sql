@@ -89,10 +89,14 @@ alter table public.zurvan_desk_files force row level security;
 alter table public.zurvan_desk_auth_limits enable row level security;
 alter table public.zurvan_desk_auth_limits force row level security;
 
-revoke all on table public.zurvan_desk_accounts from anon, authenticated;
-revoke all on table public.zurvan_desk_sessions from anon, authenticated;
-revoke all on table public.zurvan_desk_files from anon, authenticated;
-revoke all on table public.zurvan_desk_auth_limits from anon, authenticated;
+revoke all on table public.zurvan_desk_accounts from public, anon, authenticated;
+revoke all on table public.zurvan_desk_sessions from public, anon, authenticated;
+revoke all on table public.zurvan_desk_files from public, anon, authenticated;
+revoke all on table public.zurvan_desk_auth_limits from public, anon, authenticated;
+grant all on table public.zurvan_desk_accounts to service_role;
+grant all on table public.zurvan_desk_sessions to service_role;
+grant all on table public.zurvan_desk_files to service_role;
+grant all on table public.zurvan_desk_auth_limits to service_role;
 revoke all on function public.zurvan_desk_consume_auth_limit(text, integer, integer) from public, anon, authenticated;
 grant execute on function public.zurvan_desk_consume_auth_limit(text, integer, integer) to service_role;
 

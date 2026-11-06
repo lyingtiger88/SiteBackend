@@ -73,6 +73,14 @@ jobs:
         run: |
           supabase functions deploy "$FUNCTION_NAME" --project-ref "$PROJECT_REF" --use-api
 
+      - name: Verify deployed Zurvan Desk API
+        if: inputs.function_name == 'zurvan-desk-api'
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error -H 'apikey: sb_publishable_UAKFYbxgWOCVRDDdv_0JLg_oIIiubmT' 'https://yztithydgdvydaktuxlw.supabase.co/functions/v1/zurvan-desk-api/health')"
+          echo "$response" | jq -e '.service == "zurvan-desk-api" and .status == "ok" and .apiVersion == "v1"'
+
       - name: Deployment summary
         shell: bash
         run: |

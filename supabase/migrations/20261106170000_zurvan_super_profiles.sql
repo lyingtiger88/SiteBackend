@@ -1,43 +1,54 @@
--- Special "Super" accounts: perpetual premium access with an exclusive identity/theme.
--- Grants are managed only from the trusted Supabase SQL Editor / service role.
+-- Super levels live directly in public.zurvan_accounts for easy Table Editor administration.
+-- PostgreSQL ENUM values appear as selectable options in Supabase Table Editor.
+-- The Super display title remains free-form text; never overwrite a custom title.
 begin;
 
-create table if not exists public.zurvan_special_profiles (
-  account_id uuid primary key references public.zurvan_accounts(id) on delete restrict,
-  tier text not null default 'super' check (tier='super'),
-  display_name text not null default 'Zurvan Sovereign',
-  theme_key text not null default 'super_aurora',
-  granted_at timestamptz not null default now(),
-  granted_by text,
-  revoked_at timestamptz,
-  created_at timestamptz not null default now(),
-  constraint special_display_name_length check (
-    char_length(display_name) between 2 and 48
-  ),
-  constraint special_theme_key_format check (
-    theme_key ~ '^[a-z][a-z0-9_]{2,31}$'
-  )
-);
+do $$
+begin
+  create type public.zurvan_super_type as enum
+    ('founder','inner_circle','elite','royal');
+exception when duplicate_object then null;
+end $$;
 
-alter table public.zurvan_special_profiles enable row level security;
-alter table public.zurvan_special_profiles force row level security;
-revoke all on public.zurvan_special_profiles from public, anon, authenticated;
+alter table public.zurvan_accounts
+  add column if not exists super_type text,
+  add column if not exists super_title text,
+  add column if not exists super_theme text,
+  add column if not exists super_granted_at timestamptz;
 
--- Service-only lookup; the public license-status Edge Function performs this
--- lookup after authenticating the caller and returns only that caller's profile.
-comment on table public.zurvan_special_profiles is
-  'Private allowlist of perpetual Super accounts and their exclusive Zurvan theme identity.';
+-- Drop previously suggested text CHECK constraint before casting to ENUM.
+alter table public.zurvan_accounts
+  drop constraint if exists zurvan_super_type_check;
 
+-- Reject unknown existing values without deleting or rewriting accounts.
+do $$
+declare invalid_types text;
+begin
+  select string_agg(distinct super_type::text, ', ')
+    into invalid_types
+  from public.zurvan_accounts
+  where super_type is not null
+    and super_type::text not in ('founder','inner_circle','elite','royal');
+  if invalid_types is not null then
+    raise exception 'Unknown super_type values: %',invalid_types;
+  end if;
+end $$;
+
+alter table public.zurvan_accounts
+  alter column super_type type public.zurvan_super_type
+    using super_type::text::public.zurvan_super_type;
+
+comment on column public.zurvan_accounts.super_type is
+  'Optional special membership level: founder, inner_circle, elite or royal.';
+comment on column public.zurvan_accounts.super_title is
+  'Administrator-editable display title shown in the Zurvan license screen.';
+comment on column public.zurvan_accounts.super_theme is
+  'Client theme identifier for this special membership level.';
+
+-- Keep the original RLS/privilege restrictions. A logged-in app user cannot
+-- grant a Super level by editing account metadata.
 commit;
 
--- Assign a Super identity by verified email. Run only in the trusted SQL Editor.
--- Replace the email and display name with the intended values.
--- This is an example template and is intentionally NOT executed by this migration:
--- insert into public.zurvan_special_profiles(account_id,display_name,theme_key,granted_by)
--- select id,'Zurvan Inner Circle','super_aurora','owner'
--- from public.zurvan_accounts
--- where id=(select id from auth.users where lower(email)=lower('friend@example.com'))
---   and status='active'
--- on conflict(account_id) do update set
---   display_name=excluded.display_name, theme_key=excluded.theme_key,
---   revoked_at=null, granted_at=now(), granted_by=excluded.granted_by;
+-- Example: set an existing user's Super level and a custom title via Table Editor
+-- (as postgres) or via audited SQL Editor operations. No account is changed
+-- automatically by this migration.

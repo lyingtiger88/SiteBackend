@@ -54,7 +54,7 @@ begin
    status='active';
 
  insert into public.devices(account_id,public_key,key_fingerprint,platform,device_label)
- values(new_account,ch.public_key,fingerprint,ch.platform,'Android enrolled device')
+ values(new_account,ch.public_key,fingerprint,ch.platform,initcap(ch.platform) || ' enrolled device')
  returning id into new_device;
 
  insert into public.zurvan_devices(account_id,key_fingerprint,public_key,platform,label)

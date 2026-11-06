@@ -17,6 +17,7 @@ on:
           - health-check
           - zurvan-license-status
           - authenticated-device-enrollment
+          - zurvan-desk-api
 
 permissions:
   contents: read

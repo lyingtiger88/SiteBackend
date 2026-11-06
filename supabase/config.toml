@@ -24,3 +24,6 @@ verify_jwt = false
 
 [functions.authenticated-device-enrollment]
 verify_jwt = false
+
+[functions.zurvan-desk-api]
+verify_jwt = false

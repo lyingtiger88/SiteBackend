@@ -1,0 +1,28 @@
+name: Validate Zurvan Desk Edge API
+
+on:
+  pull_request:
+    paths:
+      - "supabase/functions/zurvan-desk-api/**"
+      - "supabase/migrations/*zurvan_desk*"
+      - "supabase/config.toml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/zurvan-desk-api/**"
+      - "supabase/migrations/*zurvan_desk*"
+      - "supabase/config.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  deno-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check Edge Function
+        run: deno check supabase/functions/zurvan-desk-api/index.ts

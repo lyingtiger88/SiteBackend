@@ -44,11 +44,13 @@ async function sha256Hex(value: string): Promise<string> {
   return Array.from(digest, (x) => x.toString(16).padStart(2, "0")).join("");
 }
 async function derivePasswordHash(password: string, salt: Uint8Array): Promise<Uint8Array> {
+  const saltBytes = new Uint8Array(salt.length);
+  saltBytes.set(salt);
   const material = await crypto.subtle.importKey(
     "raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"],
   );
   const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt, iterations: PBKDF2_ITERATIONS },
+    { name: "PBKDF2", hash: "SHA-256", salt: saltBytes, iterations: PBKDF2_ITERATIONS },
     material,
     256,
   );

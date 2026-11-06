@@ -17,6 +17,7 @@ on:
           - health-check
           - zurvan-license-status
           - authenticated-device-enrollment
+          - zurvan-celebration-schedules
 
 permissions:
   contents: read

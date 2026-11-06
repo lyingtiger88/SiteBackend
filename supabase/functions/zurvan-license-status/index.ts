@@ -41,7 +41,7 @@ Deno.serve(async req=>{
   if(!account.username)return json(409,{error:"account_mapping_missing"});
 
   const {data:licenseAccount,error:mappingError}=await db.from("zurvan_accounts")
-    .select("id,status").eq("id",user.id).maybeSingle();
+    .select("id,status,super_type,super_title,super_theme,super_granted_at").eq("id",user.id).maybeSingle();
   if(mappingError)return json(503,{error:"database_unavailable"});
   if(!licenseAccount||licenseAccount.status!=="active")
     return json(200,{account_state:"active",license_account_state:licenseAccount?.status??"not_found",licenses:[]});
@@ -50,6 +50,21 @@ Deno.serve(async req=>{
     .select("id,product_id,type,status,generation,created_at")
     .eq("account_id",licenseAccount.id).order("created_at",{ascending:false}).limit(50);
   if(licenseError)return json(503,{error:"database_unavailable"});
+
+  const superDefaults:Record<string,{title:string,theme:string}>={
+    founder:{title:"Zurvan Founder",theme:"super_founder"},
+    inner_circle:{title:"Zurvan Inner Circle",theme:"super_aurora"},
+    elite:{title:"Zurvan Elite",theme:"super_elite"},
+    royal:{title:"Zurvan Royal",theme:"super_royal"}
+  };
+  const selected=licenseAccount.super_type ?
+    superDefaults[String(licenseAccount.super_type)] : undefined;
+  const specialProfile=selected?{
+    tier:licenseAccount.super_type,
+    display_name:licenseAccount.super_title?.trim()||selected.title,
+    theme_key:licenseAccount.super_theme?.trim()||selected.theme,
+    granted_at:licenseAccount.super_granted_at
+  }:null;
 
   const licenseIds=(licenses??[]).map(x=>x.id);
   let activations:unknown[]=[];
@@ -61,5 +76,7 @@ Deno.serve(async req=>{
     activations=data??[];
   }
   return json(200,{account_state:"active",license_account_state:"active",licenses,activations,
+    special_profile:specialProfile,
+    entitlements:specialProfile?{premium:true,perpetual:true,can_create_events:true}:null,
     checked_at:new Date().toISOString()});
 });

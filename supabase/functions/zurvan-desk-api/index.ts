@@ -141,10 +141,16 @@ Deno.serve(async (request: Request) => {
     return new Response(null, { status: 204, headers: { "cache-control": "no-store" } });
   }
 
+  // Supabase can forward the request URL with or without the
+  // /functions/v1 prefix. Match the function name itself so all variants
+  // resolve to the same API route. Do not use a substring of a different
+  // function name as a valid route.
   const url = new URL(request.url);
-  const marker = "/functions/v1/zurvan-desk-api";
-  const markerIndex = url.pathname.indexOf(marker);
-  const path = markerIndex >= 0 ? url.pathname.slice(markerIndex + marker.length) : url.pathname;
+  const segments = url.pathname.split("/").filter(Boolean);
+  const functionIndex = segments.lastIndexOf("zurvan-desk-api");
+  const path = functionIndex >= 0
+    ? "/" + segments.slice(functionIndex + 1).join("/")
+    : url.pathname;
   const method = request.method.toUpperCase();
 
   try {

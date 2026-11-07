@@ -78,8 +78,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          response="$(curl --fail --silent --show-error -H 'apikey: sb_publishable_UAKFYbxgWOCVRDDdv_0JLg_oIIiubmT' 'https://yztithydgdvydaktuxlw.supabase.co/functions/v1/zurvan-desk-api/health')"
-          echo "$response" | jq -e '.service == "zurvan-desk-api" and .status == "ok" and .apiVersion == "v1"'
+          url='https://yztithydgdvydaktuxlw.supabase.co/functions/v1/zurvan-desk-api/health'
+          for attempt in 1 2 3 4 5 6; do
+            output="$(mktemp)"
+            status="$(curl --silent --show-error --max-time 20 --output "$output" --write-out '%{http_code}' -H 'apikey: sb_publishable_UAKFYbxgWOCVRDDdv_0JLg_oIIiubmT' "$url")"
+            if [[ "$status" == '200' ]] && jq -e '.service == "zurvan-desk-api" and .status == "ok" and .apiVersion == "v1"' "$output" >/dev/null; then
+              echo 'Zurvan Desk API is healthy and its database and private bucket are ready.'
+              rm -f "$output"
+              exit 0
+            fi
+            echo "::warning::Desk health probe attempt $attempt returned HTTP $status"
+            if [[ "$attempt" == '6' ]]; then
+              echo "::error::Desk health probe failed (HTTP $status). Response:"
+              head -c 1600 "$output"
+              echo
+              rm -f "$output"
+              exit 1
+            fi
+            rm -f "$output"
+            sleep 3
+          done
 
       - name: Deployment summary
         shell: bash

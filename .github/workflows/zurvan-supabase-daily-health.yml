@@ -1,0 +1,51 @@
+name: Zurvan Supabase daily health monitor
+
+on:
+  schedule:
+    # Once per day, 06:17 UTC. GitHub may delay scheduled jobs.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zurvan-supabase-daily-health
+  cancel-in-progress: false
+
+jobs:
+  check-zurvan-supabase:
+    name: Check Supabase database-backed API
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Query Zurvan Desk health endpoint (database-backed)
+        shell: bash
+        env:
+          SUPABASE_URL: https://yztithydgdvydaktuxlw.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_UAKFYbxgWOCVRDDdv_0JLg_oIIiubmT
+        run: |
+          set -euo pipefail
+          url="${SUPABASE_URL}/functions/v1/zurvan-desk-api/health"
+          for attempt in 1 2 3; do
+            body="$(mktemp)"
+            if code="$(curl --silent --show-error --max-time 25 --output "$body" --write-out '%{http_code}' \
+              -H "apikey: ${SUPABASE_PUBLISHABLE_KEY}" "$url")"; then
+              if [[ "$code" == "200" ]] && jq -e '.service == "zurvan-desk-api" and .status == "ok" and .apiVersion == "v1"' "$body" >/dev/null 2>&1; then
+                echo "Zurvan Desk API is ready. Its health route executed a real database query."
+                rm -f "$body"
+                exit 0
+              fi
+              echo "::warning::Health attempt ${attempt}: HTTP ${code}; expected healthy Desk API"
+              if [[ "$attempt" == "3" ]]; then
+                # Do not dump arbitrary server responses into persistent workflow logs.
+                echo "::error::Final health check failed with HTTP ${code}. Open Supabase logs and confirm the project is active."
+              fi
+            else
+              echo "::warning::Health attempt ${attempt}: unable to connect to Supabase"
+            fi
+            rm -f "$body"
+            if [[ "$attempt" != "3" ]]; then sleep 12; fi
+          done
+          echo "::error::Zurvan Supabase health monitor failed after three attempts."
+          exit 1

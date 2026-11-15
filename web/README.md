@@ -6,13 +6,15 @@ Brand: **کالیا سافت (Kaliia Soft)**.
 - `web/index.html` — storefront home and product cards.
 - `web/products/zurvan/index.html` — Zurvan product page.
 - `web/products/maal/index.html` — Maal product page.
+- `web/products/zarr/index.html` — Zarr | زر accounting product page (informational until commercial readiness).
 - `web/products/shopmanager/index.html` — ShopManager product page.
 - `web/products/health-bridge/index.html` — informational-only Health Bridge page (no checkout).
 - `web/manual-payment/index.html` — account registration/login, manual payment receipt submission, customer request history, admin tariff and payment review.
 - `web/admin/documents.html` — private document archive for customers and administrators.
 
 ## Product catalog
-- Zurvan, Maal and ShopManager: commercial products. Checkout links pass the selected product to `/manual-payment/?product=<product-id>`.
+- Zurvan, Maal and ShopManager: configured commercial products. Checkout links pass the selected product to `/manual-payment/?product=<product-id>`.
+- Zarr (`zarr`): standalone accounting product, with a 45-day product-specific trial endpoint; subscription prices are intentionally disabled and purchase is blocked until launch checks are complete.
 - پل سلامت (`health-bridge`): informational-only product; not shown as purchasable in the checkout catalog.
 
 ## Replaceable screenshot placeholders
@@ -34,8 +36,11 @@ Supabase Edge Function CORS currently allows `https://kaliia.ir`, `https://www.k
 
 ## Multi-product licensing API
 - Supabase Edge Function: `kaliia-entitlement` (JWT verification required).
-- Request: `POST /functions/v1/kaliia-entitlement` with `{action:"status"|"start_trial", product_id:"zurvan"|"maal"|"shopmanager"}`.
+- Request: `POST /functions/v1/kaliia-entitlement` with `{action:"status"|"start_trial", product_id:"zurvan"|"maal"|"shopmanager"|"zarr"}`.
 - Trial issuance is server-side, account/product scoped, one-time, and 45 days. An existing expired/revoked/suspended license is never replaced with a fresh trial.
 - Response includes `entitlement.can_write`, `status`, `expires_at`, `days_remaining`, and `trial_available`.
 - Client applications must use verified Supabase Auth access tokens and the publishable key only. Never distribute the service-role key.
 - Client-side enforcement must be integrated at repository/domain mutation boundaries and, for online APIs, server-side command handlers. Disabling buttons alone is not sufficient.
+
+## Zarr commercial launch gate
+Zarr is intentionally registered with `sales_enabled=false` while 1/3/6/12-month tariff slots have no prices. Superadmins may stage Zarr tariffs in the manual-payment admin UI, but real receipt submission stays blocked until the product is explicitly marked for sale. Do not activate sales before the accounting API's company-owner identity mapping and server-side read-only enforcement are tested. Zarr and Maal share neither license product ID nor subscription history.

@@ -1,17 +1,32 @@
-# Kaliia Soft — Site / Admin console route map
+# Kaliia Soft — Website routes
 
 Brand: **کالیا سافت (Kaliia Soft)**.
 
-Planned website (not yet deployed):
-- `/` — Kaliia Soft introduction, product catalog, downloads and FAQ
-- `/pricing` — lifetime license regional pricing
-- `/checkout` — secure order start, redirect to approved payment provider
-- `/payment/result` — display verified server-side order status (return URLs are not trusted)
-- `/account` — username/password, device binding, license state
-- `/account/transfer` — transfer reason, step-up verification, replacement device
-- `/account/recovery` — account recovery for lost devices
-- `/admin` — privileged users, orders, gateway verifications, license state, audits
+## Implemented static pages
+- `web/index.html` — storefront home and product cards.
+- `web/products/zurvan/index.html` — Zurvan product page.
+- `web/products/maal/index.html` — Maal product page.
+- `web/products/shopmanager/index.html` — ShopManager product page.
+- `web/manual-payment/index.html` — account registration/login, manual payment receipt submission, customer request history, admin tariff and payment review.
+- `web/admin/documents.html` — private document archive for customers and administrators.
 
-Architecture recommendation: static frontend + server-side API. Do not expose PostgreSQL credentials, signing keys or privileged DB roles in browser assets. Use HTTPS, CSRF protection where cookies are used, security headers, and accessible Persian RTL plus English UI.
+## Product catalog
+- Zurvan, Maal and ShopManager: commercial products. Checkout links pass the selected product to `/manual-payment/?product=<product-id>`.
+- پل سلامت (`health-bridge`): informational-only product; not shown as purchasable in the checkout catalog.
 
-Site source implementation to follow after UI/framework selection. No live checkout or admin page has been created yet.
+## Replaceable screenshot placeholders
+Product detail pages intentionally contain separate Desktop and Android screenshot placeholders. Replace each placeholder with approved product screenshots only after the final images are supplied. The home page also has a clearly marked hero image placeholder per product.
+
+## Deployment
+Publish the contents of the `web/` directory as the static website document root over HTTPS. Preserve the directory structure so `/products/<id>/`, `/manual-payment/` and `/admin/documents.html` resolve. If hosting does not support directory index files, configure a fallback/rewrite to each `index.html`.
+
+Supabase Edge Function CORS currently allows `https://kaliia.ir`, `https://www.kaliia.ir` and localhost development origins. If the final public domain differs, update both Edge Function allowlists and redeploy before production.
+
+## Still required before accepting real payments
+1. Publish the site to the actual hosting account and configure DNS/HTTPS.
+2. Admin enters the real destination card number and cardholder name in the payment page.
+3. Admin enters real tariffs for each product and duration; no plan is enabled by default.
+4. Complete an end-to-end test using a verified customer account and an authorized superadmin.
+5. Configure and test database and Storage backups.
+6. Supply and replace screenshot placeholders; confirm product descriptions and feature lists against the actual released builds.
+7. Connect and test product-specific license checks in all desktop and Android clients.

@@ -31,3 +31,11 @@ Supabase Edge Function CORS currently allows `https://kaliia.ir`, `https://www.k
 5. Configure and test database and Storage backups.
 6. Supply and replace screenshot placeholders; confirm product descriptions and feature lists against the actual released builds.
 7. Connect and test product-specific license checks in all desktop and Android clients.
+
+## Multi-product licensing API
+- Supabase Edge Function: `kaliia-entitlement` (JWT verification required).
+- Request: `POST /functions/v1/kaliia-entitlement` with `{action:"status"|"start_trial", product_id:"zurvan"|"maal"|"shopmanager"}`.
+- Trial issuance is server-side, account/product scoped, one-time, and 45 days. An existing expired/revoked/suspended license is never replaced with a fresh trial.
+- Response includes `entitlement.can_write`, `status`, `expires_at`, `days_remaining`, and `trial_available`.
+- Client applications must use verified Supabase Auth access tokens and the publishable key only. Never distribute the service-role key.
+- Client-side enforcement must be integrated at repository/domain mutation boundaries and, for online APIs, server-side command handlers. Disabling buttons alone is not sufficient.

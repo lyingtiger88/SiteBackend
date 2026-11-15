@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kaliia Soft | اشتراک و پرداخت دستی</title>
+<style>
+:root{font-family:Tahoma,"Segoe UI",sans-serif;color:#eaf0fa;background:#101e32}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(145deg,#14253c,#071423)}
+main{max-width:1080px;margin:auto;padding:30px 16px 60px}.brand{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:24px}
+h1{font-size:26px;margin:0}h2{font-size:19px;margin:0 0 18px}p{line-height:1.9;color:#aabbcc}
+.card{background:#1e3048;border:1px solid #38516b;border-radius:16px;padding:22px;margin:16px 0;box-shadow:0 10px 24px #0002}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.wide{grid-column:1/-1}
+label{display:block;font-size:13px;margin-bottom:7px;color:#cbdded}input,textarea,select{width:100%;font:inherit;border:1px solid #526981;border-radius:9px;background:#122237;color:#fff;padding:12px;outline-offset:3px}
+input[type=file]{padding:9px}button{font:inherit;border:0;border-radius:9px;padding:11px 19px;background:#6e8ffc;color:#fff;cursor:pointer}
+button.secondary{background:#344b65}button.reject{background:#a93c4e}button:disabled{opacity:.45;cursor:not-allowed}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.small{font-size:12px;color:#bccbdc}.muted{color:#aabbcc}
+.bank{padding:18px;border:1px solid #516784;border-radius:12px;background:#122337}
+.bank strong{display:block;font-size:24px;letter-spacing:2px;direction:ltr;text-align:right;margin:8px 0}
+.status{margin:12px 0;padding:12px;border-radius:9px;background:#304d66;color:#f5f9ff;white-space:pre-line}
+.hidden{display:none!important}.entry{padding:14px;border:1px solid #405870;border-radius:10px;margin:10px 0}
+.entry header{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.entry p{margin:5px 0}
+.ok{color:#81d7a5}.warn{color:#ffcf78}.bad{color:#ff9ba7}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.card{padding:15px}.bank strong{font-size:19px}}
+</style></head>
+<body><main>
+<div class="brand"><h1>کالیا سافت | Kaliia Soft</h1><button id="logout" class="secondary hidden" type="button">خروج</button></div>
+<section class="card" id="auth">
+<h2>ایجاد حساب یا ورود</h2>
+<p>برای خرید محصولات کالیا سافت، ابتدا حساب کاربری بسازید و ایمیل خود را تأیید کنید.</p>
+<div class="grid">
+<div><label for="email">آدرس ایمیل</label><input type="email" id="email" autocomplete="email" required></div>
+<div><label for="password">رمز عبور (حداقل ۸ نویسه)</label><input type="password" id="password" minlength="8" autocomplete="current-password" required></div>
+</div><div class="actions"><button id="signup">ثبت‌نام</button><button id="login" class="secondary">ورود</button></div>
+</section>
+<section id="account" class="hidden">
+<div class="card"><h2>حساب شما</h2><div id="identity"></div>
+<p>در اولین ورود تأییدشده، دوره آزمایشی ۴۵ روزه شروع می‌شود. ثبت درخواست پرداخت به معنی تأیید پرداخت یا فعال شدن اشتراک نیست.</p>
+</div>
+<div class="card">
+<h2>۱. واریز به حساب مقصد</h2>
+<div class="bank">
+<span>شماره کارت بانکی مقصد</span><strong id="merchantCard">—</strong>
+<span>نام صاحب کارت</span><p id="merchantName">هنوز تنظیم نشده است</p>
+</div>
+<p class="small">لطفاً فقط به شماره کارت اعلام‌شده در همین صفحه واریز کنید و تصویر رسید را نگه دارید. هیچ رمز کارت، CVV2 یا رمز پویا از شما درخواست نمی‌شود.</p>
+</div>
+<div class="card">
+<h2>۲. تکمیل فرم ثبت رسید</h2>
+<form id="paymentForm" class="grid">
+<div><label for="productSelect">نرم‌افزار</label><select id="productSelect" required><option value="">انتخاب محصول</option></select></div>
+<div><label for="planSelect">مدت اشتراک</label><select id="planSelect" required><option value="">انتخاب پلن</option></select></div>
+<div class="wide"><div class="bank" id="orderSummary">ابتدا محصول و پلن دارای قیمت فعال را انتخاب کنید.</div></div>
+<div><label for="fullName">نام و نام خانوادگی</label><input id="fullName" required minlength="3" maxlength="120" autocomplete="name"></div>
+<div><label for="customerEmail">ایمیل حساب</label><input type="email" id="customerEmail" disabled></div>
+<div><label for="phone">شماره تماس</label><input id="phone" type="tel" required maxlength="20" autocomplete="tel" placeholder="09xxxxxxxxx"></div>
+<div><label for="bankReference">شماره پیگیری بانکی (اختیاری)</label><input id="bankReference" maxlength="80" autocomplete="off"></div>
+<div><label for="receipt">رسید پرداخت (JPG، PNG یا PDF؛ حداکثر ۵ مگابایت)</label>
+<input id="receipt" type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" required></div>
+<div class="wide"><button id="submit" type="submit">ثبت رسید برای بررسی</button></div>
+</form>
+<div id="myRequests"></div>
+</div>
+</section>
+<section class="card hidden" id="admin">
+<h2>پنل مدیریت پرداخت دستی</h2>
+<p>فقط حساب مدیر مجاز می‌تواند شماره کارت مقصد را تعیین کند، رسیدها را ببیند و پرداخت‌ها را تأیید یا رد کند.</p>
+<div class="grid">
+<div><label for="adminCard">شماره کارت مقصد (۱۶ رقم)</label><input id="adminCard" inputmode="numeric" maxlength="22" placeholder="شماره کارت واقعی"></div>
+<div><label for="adminName">نام صاحب کارت</label><input id="adminName" maxlength="120"></div>
+</div>
+<div class="actions"><button id="saveBank">ثبت حساب مقصد</button><button id="reloadAdmin" class="secondary">به‌روزرسانی درخواست‌ها</button></div>
+<h3>تعرفه‌های محصولات</h3><div class="grid">
+<div><label for="adminProduct">محصول</label><select id="adminProduct"><option value="zurvan">زروان</option><option value="maal">مال</option><option value="shopmanager">ShopManager</option></select></div>
+<div><label for="adminMonths">مدت اشتراک</label><select id="adminMonths"><option value="1">۱ ماه</option><option value="3">۳ ماه</option><option value="6">۶ ماه</option><option value="12">۱۲ ماه</option></select></div>
+<div><label for="adminAmount">مبلغ</label><input id="adminAmount" type="number" min="1" step="1"></div>
+<div><label for="adminCurrency">واحد پول</label><select id="adminCurrency"><option value="IRR">ریال</option><option value="IRT">تومان</option></select></div>
+<div><label for="adminEnabled">وضعیت فروش</label><select id="adminEnabled"><option value="true">فعال</option><option value="false">غیرفعال</option></select></div>
+</div><div class="actions"><button id="savePlan" type="button">ثبت تعرفه</button><button id="reloadPlans" type="button" class="secondary">نمایش تعرفه‌ها</button></div>
+<div id="plansList"></div><h3>درخواست‌های پرداخت</h3><div id="adminRequests"></div>
+</section>
+<div id="message" class="status" role="status" aria-live="polite">برای شروع وارد حساب شوید.</div>
+<p class="small">رسیدها خصوصی هستند و فقط مدیر مجاز لینک مشاهده موقت دریافت می‌کند. قبل از تأیید، واریز را با تراکنش بانکی واقعی تطبیق دهید.</p>
+</main>
+<script>
+"use strict";
+const BASE="https://yztithydgdvydaktuxlw.supabase.co";
+const KEY="sb_publishable_UAKFYbxgWOCVRDDdv_0JLg_oIIiubmT";
+const endpoint=BASE+"/functions/v1/zurvan-manual-payment";
+const el=id=>document.getElementById(id);
+let session=null,merchantReady=false,admin=false,catalog=[],chosenPlan=null;
+const status=(message)=>el("message").textContent=message;
+const errorMessages={
+ confirmed_account_required:"ابتدا ایمیل حساب را تأیید کنید و دوباره وارد شوید.",
+ registration_required:"ثبت‌نام دستگاه یا حساب هنوز کامل نشده است.",
+ pending_request_exists:"یک رسید در انتظار بررسی دارید. پس از تعیین تکلیف آن درخواست جدید ثبت کنید.",
+ payment_not_configured:"شماره کارت مقصد هنوز توسط مدیر تنظیم نشده است.",
+ invalid_contact_information:"نام و شماره تماس را صحیح وارد کنید.",
+ invalid_receipt:"فرمت فایل معتبر نیست.",
+ invalid_receipt_size:"حجم رسید نامعتبر است.",
+ unsupported_receipt_type:"فقط PDF، JPG یا PNG مجاز است.",
+ account_not_ready:"حساب آماده نیست؛ ورود و تأیید ایمیل را تکمیل کنید.",
+ admin_required:"این بخش فقط برای مدیر است.",
+ already_reviewed:"این درخواست قبلاً بررسی شده است.",
+ invalid_product_plan:"محصول یا پلن معتبر نیست.",
+ product_not_for_sale:"این محصول قابل فروش نیست.",
+ plan_not_configured:"برای این پلن تعرفه فعال تعیین نشده است."
+};
+function friendly(code){return errorMessages[code]||"خطا در ارتباط با سرور ("+code+").";}
+function setSession(value){if(value&&!value.expires_at&&value.expires_in)value.expires_at=Math.floor(Date.now()/1000)+Number(value.expires_in);session=value;sessionStorage.setItem("kaliia_soft_store_session",JSON.stringify(value));}
+async function authRequest(path,payload){
+ const response=await fetch(BASE+"/auth/v1/"+path,{method:"POST",headers:{"apikey":KEY,"content-type":"application/json"},body:JSON.stringify(payload)});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw Error(data.msg||data.error_description||data.message||"خطا در ورود");
+ return data;
+}
+async function token(){
+ if(!session)throw Error("ابتدا وارد شوید.");
+ if(session.expires_at && Date.now()/1000>session.expires_at-60){
+   const next=await authRequest("token?grant_type=refresh_token",{refresh_token:session.refresh_token});
+   setSession(next);
+ }
+ return session.access_token;
+}
+async function api(action,body={}){
+ const response=await fetch(endpoint,{method:"POST",
+ headers:{"apikey":KEY,"authorization":"Bearer "+await token(),"content-type":"application/json"},
+ body:JSON.stringify({action,...body})});
+ const data=await response.json().catch(()=>({error:"server_unavailable"}));
+ if(!response.ok)throw Error(friendly(data.error||"unknown"));
+ return data;
+}
+async function signedIn(){
+ el("auth").classList.add("hidden");el("account").classList.remove("hidden");el("logout").classList.remove("hidden");
+ // The payment service verifies the signed-in user's JWT on each request.
+ el("identity").textContent="ایمیل: "+(session.user?.email||el("email").value);
+ el("customerEmail").value=session.user?.email||el("email").value;
+ try{
+   const first=await api("init");void first;
+   const available=await api("catalog");
+   catalog=available.products||[];
+   populateProducts();
+   const config=await api("config");
+   merchantReady=config.ready;
+   el("merchantCard").textContent=config.merchant_card?
+      config.merchant_card.replace(/(\d{4})(?=\d)/g,"$1 ") : "در انتظار تنظیم مدیر";
+   el("merchantName").textContent=config.merchant_name||"در انتظار تنظیم مدیر";
+   updateOrderSummary();
+   await loadMine();
+   await loadAdmin();
+   status("حساب آماده است. پس از واریز، تصویر رسید را ارسال کنید.");
+ }catch(err){status(err.message);el("submit").disabled=true;}
+}
+async function loadMine(){
+ const data=await api("mine"), host=el("myRequests");host.replaceChildren();
+ if(!data.requests.length){const p=document.createElement("p");p.textContent="هنوز رسیدی ثبت نکرده‌اید.";host.append(p);return;}
+ const h=document.createElement("h3");h.textContent="درخواست‌های قبلی";host.append(h);
+ for(const item of data.requests){
+   const box=document.createElement("div");box.className="entry";
+   const p=document.createElement("p");p.textContent=(item.product_id||"محصول")+" | "+(item.duration_months||"?")+" ماه | "+new Date(item.submitted_at).toLocaleString("fa-IR")+" | "+({
+      pending:"در انتظار بررسی",approved:"تأیید شده",rejected:"رد شده"
+    }[item.status]||item.status);
+   box.append(p);
+   if(item.admin_note){const n=document.createElement("p");n.textContent="توضیح مدیر: "+item.admin_note;box.append(n);}
+   host.append(box);
+ }
+}
+function populateProducts(){
+ const select=el("productSelect");
+ select.replaceChildren(new Option("انتخاب محصول",""));
+ catalog.filter(p=>p.sales_enabled).forEach(p=>select.add(new Option(p.name,p.id)));
+ const requested=new URLSearchParams(location.search).get("product");
+ if(requested&&catalog.some(p=>p.id===requested&&p.sales_enabled))select.value=requested;
+ populatePlans();
+}
+function populatePlans(){
+ const product=catalog.find(p=>p.id===el("productSelect").value);
+ const select=el("planSelect");
+ select.replaceChildren(new Option("انتخاب پلن",""));
+ (product?.plans||[]).forEach(p=>select.add(new Option(p.months+" ماهه",String(p.months))));
+ updateOrderSummary();
+}
+function updateOrderSummary(){
+ const product=catalog.find(p=>p.id===el("productSelect").value);
+ chosenPlan=product?.plans?.find(p=>String(p.months)===el("planSelect").value)||null;
+ el("orderSummary").textContent=chosenPlan?
+  "سفارش: "+product.name+" | "+chosenPlan.months+" ماه | مبلغ: "+
+  Number(chosenPlan.amount_minor).toLocaleString("fa-IR")+" "+(chosenPlan.currency==="IRT"?"تومان":"ریال"):
+  "ابتدا محصول و پلن دارای قیمت فعال را انتخاب کنید.";
+ el("submit").disabled=!merchantReady||!chosenPlan;
+}
+el("productSelect").addEventListener("change",populatePlans);
+el("planSelect").addEventListener("change",updateOrderSummary);
+function addButton(parent,label,handler,css="secondary"){
+ const b=document.createElement("button");b.type="button";b.textContent=label;b.className=css;b.addEventListener("click",handler);parent.append(b);
+}
+async function loadAdmin(){
+ try{
+   const data=await api("admin_list");
+   admin=true;el("admin").classList.remove("hidden");
+   await listPlans();
+   const host=el("adminRequests");host.replaceChildren();
+   for(const item of data.requests){
+      const box=document.createElement("div");box.className="entry";
+      const head=document.createElement("header");const title=document.createElement("strong");
+      title.textContent=item.full_name+" | "+item.status;head.append(title);
+      const date=document.createElement("span");date.textContent=new Date(item.submitted_at).toLocaleString("fa-IR");head.append(date);box.append(head);
+      const contact=document.createElement("p");contact.textContent=item.contact_email+" | "+item.phone;box.append(contact);
+      const actions=document.createElement("div");actions.className="actions";
+      addButton(actions,"مشاهده رسید",async()=>{
+         try {const d=await api("admin_receipt",{id:item.id});window.open(d.url,"_blank","noopener");}
+         catch(e){status(e.message);}
+      });
+      if(item.status==="pending"){
+        addButton(actions,"تأیید و فعال‌سازی اشتراک",async()=>{
+           if(!confirm("تراکنش بانکی را مستقل از رسید بررسی کرده‌اید و فعال‌سازی را تأیید می‌کنید؟"))return;
+           try{await api("admin_review",{id:item.id,decision:"approve"});await loadAdmin();status("اشتراک انتخابی مشتری فعال شد.");}
+           catch(e){status(e.message);}
+        },"");
+        addButton(actions,"رد پرداخت",async()=>{
+          const note=prompt("دلیل رد (اختیاری):")||"";
+          if(!confirm("این درخواست رد شود؟"))return;
+          try{await api("admin_review",{id:item.id,decision:"reject",note});await loadAdmin();}
+          catch(e){status(e.message);}
+        },"reject");
+      }
+      box.append(actions);host.append(box);
+   }
+ }catch(e){if(admin)status(e.message);}
+}
+el("signup").addEventListener("click",async()=>{
+ try{
+ const email=el("email").value.trim(),password=el("password").value;
+ if(!email||password.length<8)throw Error("ایمیل و رمز عبور حداقل ۸ نویسه را وارد کنید.");
+ const data=await authRequest("signup",{email,password});
+ if(data.access_token){setSession(data);await signedIn();}
+ else status("ثبت‌نام انجام شد. ایمیل خود را تأیید کنید و سپس وارد شوید.");
+ }catch(e){status(e.message);}
+});
+el("login").addEventListener("click",async()=>{
+ try{
+ const data=await authRequest("token?grant_type=password",{
+ email:el("email").value.trim(),password:el("password").value
+ });setSession(data);await signedIn();
+ }catch(e){status(e.message);}
+});
+el("logout").addEventListener("click",()=>{
+ session=null;sessionStorage.removeItem("kaliia_soft_store_session");
+ el("account").classList.add("hidden");el("admin").classList.add("hidden");
+ el("auth").classList.remove("hidden");el("logout").classList.add("hidden");
+ status("از حساب خارج شدید.");
+});
+el("paymentForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ try{
+ if(!merchantReady)throw Error("اطلاعات کارت مقصد تنظیم نشده است.");
+ const file=el("receipt").files[0];
+ if(!file||file.size>5*1024*1024||file.size<64)throw Error("رسید معتبر و کمتر از ۵ مگابایت انتخاب کنید.");
+ el("submit").disabled=true;status("در حال بارگذاری امن رسید...");
+ const encoded=await new Promise((resolve,reject)=>{
+  const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(",")[1]);
+  reader.onerror=()=>reject(Error("خطا در خواندن رسید"));reader.readAsDataURL(file);
+ });
+ await api("submit",{full_name:el("fullName").value,phone:el("phone").value,
+ product_id:el("productSelect").value,months:Number(el("planSelect").value),
+ bank_reference:el("bankReference").value,receipt_base64:encoded});
+ el("paymentForm").reset();await loadMine();status("رسید ثبت شد و در انتظار تأیید دستی است. هنوز اشتراک فعال نشده است.");
+ }catch(e){status(e.message);}
+ finally{updateOrderSummary();}
+});
+el("saveBank").addEventListener("click",async()=>{
+ try{
+ const value=await api("admin_config",{merchant_card:el("adminCard").value,merchant_name:el("adminName").value});
+ if(value.saved){status("شماره کارت مقصد ذخیره شد.");await signedIn();}
+ }catch(e){status(e.message);}
+});
+el("reloadAdmin").addEventListener("click",loadAdmin);
+async function listPlans(){
+ const result=await api("admin_plans"),host=el("plansList");host.replaceChildren();
+ for(const p of result.plans){
+ const row=document.createElement("p");
+ row.textContent=p.product_id+" · "+p.months+" ماه · "+(p.amount_minor?Number(p.amount_minor).toLocaleString("fa-IR")+" "+p.currency:"بدون قیمت")+" · "+(p.enabled?"فعال":"غیرفعال");
+ host.append(row);
+ }
+}
+el("savePlan").addEventListener("click",async()=>{
+ try{
+ await api("admin_set_plan",{product_id:el("adminProduct").value,months:Number(el("adminMonths").value),
+ amount_minor:Number(el("adminAmount").value),currency:el("adminCurrency").value,enabled:el("adminEnabled").value==="true"});
+ await listPlans();const result=await api("catalog");catalog=result.products||[];
+ populateProducts();status("تعرفه ثبت شد.");
+ }catch(e){status(e.message)}
+});
+el("reloadPlans").addEventListener("click",()=>listPlans().catch(e=>status(e.message)));
+(async()=>{
+ try{
+   const value=sessionStorage.getItem("kaliia_soft_store_session");
+   if(value){session=JSON.parse(value);await signedIn();}
+ }catch{session=null;sessionStorage.removeItem("zurvan_manual_session");}
+})();
+</script></body></html>

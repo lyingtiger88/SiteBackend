@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 const ORIGINS=new Set(["https://kaliia.ir","https://www.kaliia.ir","http://localhost:8085","http://127.0.0.1:8085"]);
-const PRODUCTS=new Set(["zurvan","maal","shopmanager"]);
+const PRODUCTS=new Set(["zurvan","maal","shopmanager","zarr"]);
 const json=(status:number,body:unknown,origin:string|null)=>new Response(JSON.stringify(body),{status,headers:{
  "content-type":"application/json","cache-control":"no-store","x-content-type-options":"nosniff",
  ...(origin&&ORIGINS.has(origin)?{"access-control-allow-origin":origin,"vary":"Origin"}:{})

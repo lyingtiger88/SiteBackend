@@ -240,7 +240,7 @@ Deno.serve(async req => {
         return fail("invalid_plan",origin);
       const {data:product,error:productError}=await db.from("zurvan_products")
         .select("id").eq("id",productId).eq("enabled",true)
-        .eq("sales_enabled",true).maybeSingle();
+        .maybeSingle();
       if(productError||!product)return fail("product_not_for_sale",origin,403);
       const {error}=await db.from("kaliia_store_plans").upsert({
         product_id:productId,months,amount_minor:amount,currency,enabled,

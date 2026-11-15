@@ -112,6 +112,14 @@ Deno.serve(async req=>{
    if(error||!data)return json(404,{error:"document_not_found"},origin);
    return json(200,{deleted:true,id:data.id},origin);
   }
+  if(action==="payments_list"){
+   if(!(await isAdmin()))return json(403,{error:"admin_required"},origin);
+   const {data,error}=await db.from("zurvan_manual_payments")
+    .select("id,auth_user_id,full_name,contact_email,phone,status,product_id,plan_code,amount_minor,currency,bank_reference,transfer_at,submitted_at,reviewed_at,admin_note,receipt_mime,receipt_size")
+    .order("submitted_at",{ascending:false}).limit(200);
+   if(error)return json(503,{error:"payments_unavailable"},origin);
+   return json(200,{payments:data??[]},origin);
+  }
   if(action==="payment_receipt_url"){
    if(!(await isAdmin()))return json(403,{error:"admin_required"},origin);
    const paymentId=typeof body.payment_id==="string"?body.payment_id:"";

@@ -1,4 +1,6 @@
-# Document Center — Operations
+# Kaliia Soft — Document Center Operations
+
+The document center is part of the **Kaliia Soft (کالیا سافت)** customer and administration experience. Product names such as Zurvan, Maal and ShopManager remain unchanged.
 
 ## User workflow
 1. Sign in with a verified account at \`web/admin/documents.html\`.

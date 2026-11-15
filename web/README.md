@@ -1,7 +1,9 @@
-# Site / Admin console route map
+# Kaliia Soft — Site / Admin console route map
+
+Brand: **کالیا سافت (Kaliia Soft)**.
 
 Planned website (not yet deployed):
-- `/` — Zurvan introduction, download and FAQ
+- `/` — Kaliia Soft introduction, product catalog, downloads and FAQ
 - `/pricing` — lifetime license regional pricing
 - `/checkout` — secure order start, redirect to approved payment provider
 - `/payment/result` — display verified server-side order status (return URLs are not trusted)

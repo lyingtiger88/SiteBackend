@@ -69,3 +69,13 @@ The database migration and \`zurvan-document-center\` Edge Function are deployed
 7. Do not call the system production-ready until the end-to-end tests above pass.
 
 GitHub is source control, not the live website host.
+## Multi-product manual checkout rollout (2026-11-15)
+
+- Customer checkout page: `web/manual-payment/index.html` (Kaliia Soft branding), source committed but not hosted yet.
+- Real Supabase endpoint `zurvan-manual-payment` version 2 validates the chosen product and enabled 1/3/6/12-month plan, obtains the price server-side, saves a pricing snapshot and private receipt, and waits for manual review.
+- Database: `kaliia_store_plans` contains 12 disabled/unpriced plan slots (3 purchasable products × 4 durations).
+- The administrative panel in the checkout page can set bank cardholder and product-specific tariffs. The server permits privileged `superadmin` only.
+- Approval now creates/renews the exact purchased product for the purchased month count. The non-commercial product `health-bridge` is explicitly not for sale.
+- **Safe default:** all plan prices remain unset and disabled until the real business owner configures them. No real checkout is accepted while bank details or plan prices are missing.
+- **Not verified:** live browser login, receipt upload, and admin approval with a real bank transaction. No real customer orders were created during this implementation. Publish through HTTPS and execute an end-to-end test before accepting payment.
+- The existing product app(s) still need to query their own entitlements; a license issued for Maal/ShopManager does not itself prove the desktop/Android client unlocks successfully.

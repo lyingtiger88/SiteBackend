@@ -7,6 +7,7 @@ Brand: **کالیا سافت (Kaliia Soft)**.
 - `web/products/zurvan/index.html` — Zurvan product page.
 - `web/products/maal/index.html` — Maal product page.
 - `web/products/shopmanager/index.html` — ShopManager product page.
+- `web/products/health-bridge/index.html` — informational-only Health Bridge page (no checkout).
 - `web/manual-payment/index.html` — account registration/login, manual payment receipt submission, customer request history, admin tariff and payment review.
 - `web/admin/documents.html` — private document archive for customers and administrators.
 

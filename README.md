@@ -79,3 +79,9 @@ GitHub is source control, not the live website host.
 - **Safe default:** all plan prices remain unset and disabled until the real business owner configures them. No real checkout is accepted while bank details or plan prices are missing.
 - **Not verified:** live browser login, receipt upload, and admin approval with a real bank transaction. No real customer orders were created during this implementation. Publish through HTTPS and execute an end-to-end test before accepting payment.
 - The existing product app(s) still need to query their own entitlements; a license issued for Maal/ShopManager does not itself prove the desktop/Android client unlocks successfully.
+
+## Storefront frontend implementation
+- `web/index.html` now contains the Kaliia Soft homepage and catalog.
+- `web/products/zurvan/index.html`, `web/products/maal/index.html`, and `web/products/shopmanager/index.html` provide independent product pages with separate desktop and Android screenshot placeholders.
+- All product checkout links pass the product ID to the existing manual-payment page.
+- `web/README.md` contains static hosting and launch instructions. The site has not been published to a hosting provider because hosting credentials/domain deployment access have not been supplied.

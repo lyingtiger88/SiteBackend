@@ -147,7 +147,7 @@ async function signedIn(){
    updateOrderSummary();
    await loadMine();
    await loadAdmin();
-   status("حساب آماده است. پس از واریز، تصویر رسید را ارسال کنید.");
+   status(merchantReady?"حساب آماده است؛ ابتدا محصول و مدت اشتراک را انتخاب کنید.":"شماره کارت مقصد هنوز تنظیم نشده؛ پرداخت را انجام ندهید.");
  }catch(err){status(err.message);el("submit").disabled=true;}
 }
 async function loadMine(){
@@ -204,7 +204,7 @@ async function loadAdmin(){
       const head=document.createElement("header");const title=document.createElement("strong");
       title.textContent=item.full_name+" | "+item.status;head.append(title);
       const date=document.createElement("span");date.textContent=new Date(item.submitted_at).toLocaleString("fa-IR");head.append(date);box.append(head);
-      const contact=document.createElement("p");contact.textContent=item.contact_email+" | "+item.phone;box.append(contact);
+      const contact=document.createElement("p");contact.textContent=item.contact_email+" | "+item.phone+" | "+(item.product_id||"فاقد محصول")+" | "+(item.duration_months||"—")+" ماه | "+(item.amount_minor?Number(item.amount_minor).toLocaleString("fa-IR")+" "+(item.currency==="IRT"?"تومان":"ریال"):"بدون مبلغ")+(item.bank_reference?" | پیگیری: "+item.bank_reference:"");box.append(contact);
       const actions=document.createElement("div");actions.className="actions";
       addButton(actions,"مشاهده رسید",async()=>{
          try {const d=await api("admin_receipt",{id:item.id});window.open(d.url,"_blank","noopener");}
@@ -253,6 +253,7 @@ el("paymentForm").addEventListener("submit",async event=>{
  event.preventDefault();
  try{
  if(!merchantReady)throw Error("اطلاعات کارت مقصد تنظیم نشده است.");
+ if(!chosenPlan)throw Error("پلن دارای قیمت معتبر انتخاب کنید.");
  const file=el("receipt").files[0];
  if(!file||file.size>5*1024*1024||file.size<64)throw Error("رسید معتبر و کمتر از ۵ مگابایت انتخاب کنید.");
  el("submit").disabled=true;status("در حال بارگذاری امن رسید...");

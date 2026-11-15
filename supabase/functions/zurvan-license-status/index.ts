@@ -47,7 +47,7 @@ Deno.serve(async req=>{
     return json(200,{account_state:"active",license_account_state:licenseAccount?.status??"not_found",licenses:[]});
 
   const {data:licenses,error:licenseError}=await db.from("zurvan_licenses")
-    .select("id,product_id,type,status,generation,created_at")
+    .select("id,product_id,type,status,generation,created_at,expires_at")
     .eq("account_id",licenseAccount.id).order("created_at",{ascending:false}).limit(50);
   if(licenseError)return json(503,{error:"database_unavailable"});
 
@@ -60,6 +60,13 @@ Deno.serve(async req=>{
     if(error)return json(503,{error:"database_unavailable"});
     activations=data??[];
   }
-  return json(200,{account_state:"active",license_account_state:"active",licenses,activations,
-    checked_at:new Date().toISOString()});
+  const now=Date.now();
+  const normalized=(licenses??[]).map(license=>{
+    const expired=license.status==="active"&&license.expires_at!==null&&
+      new Date(license.expires_at).getTime()<=now;
+    const effectiveStatus=expired?"expired":license.status;
+    return {...license,status:effectiveStatus,can_write:effectiveStatus==="active"};
+  });
+  return json(200,{account_state:"active",license_account_state:"active",
+    licenses:normalized,activations,checked_at:new Date().toISOString()});
 });

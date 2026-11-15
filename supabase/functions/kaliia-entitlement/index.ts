@@ -19,14 +19,16 @@ Deno.serve(async req=>{
  if(!token)return json(401,{error:"sign_in_required"},origin);
  const db=createClient(url,key,{auth:{persistSession:false}});
  const {data:auth,error:authError}=await db.auth.getUser(token),user=auth?.user;
- if(authError||!user||!user.email_confirmed_at)return json(401,{error:"confirmed_account_required"},origin);
+ if(authError||!user||!user.email_confirmed_at||!user.email)return json(401,{error:"confirmed_account_required"},origin);
  let body:Record<string,unknown>;
  try{body=await req.json();if(!body||Array.isArray(body)||typeof body!=="object")throw Error()}catch{return json(400,{error:"invalid_json"},origin)}
  const product=String(body.product_id??"");
  if(!PRODUCTS.has(product))return json(400,{error:"invalid_product"},origin);
  try{
   if(body.action==="start_trial"){
-   const {data,error}=await db.rpc("kaliia_start_trial",{p_auth_user_id:user.id,p_product_id:product});
+   const {data,error}=await db.rpc("kaliia_start_trial",{
+    p_auth_user_id:user.id,p_product_id:product,p_recovery_email:user.email
+   });
    if(error)throw error;
    return json(200,{entitlement:data,checked_at:new Date().toISOString()},origin);
   }

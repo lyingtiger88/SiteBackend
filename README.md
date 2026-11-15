@@ -1,6 +1,12 @@
-# SiteBackend — Zurvan Storefront & Services
+# Kaliia Soft — Storefront & Services
 
-Source repository for the multi-product Zurvan storefront, account portal, manual-payment workflow, document archive and licensing services.
+Source repository for the **Kaliia Soft** multi-product software storefront, customer account portal, manual-payment workflow, document archive and licensing services.
+
+## Brand identity
+- Store name: **کالیا سافت**
+- English brand spelling: **Kaliia Soft**
+- Use Kaliia Soft consistently in the website header, page titles, footer, emails, invoices and customer-facing admin interfaces.
+- Product names remain independent: Zurvan, Maal and ShopManager. پل سلامت remains an informational showcase only.
 
 ## Storefront rules
 - Products offered for sale: Zurvan, Maal and ShopManager.
